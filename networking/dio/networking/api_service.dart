@@ -235,10 +235,10 @@ class ApiService implements IApiService {
   //   print('Error uploading file: $e');
   // }
 
-  // OR 
+  // OR
 
   //  final response = await apiClient.multipartRequest(
-  //     ApiEndpoints.userSignatures,
+  //     ApiConstant.userSignatures,
   //     'POST',
   //     files: {
   //       'signature_file': FileData(
@@ -255,10 +255,11 @@ class ApiService implements IApiService {
   //   );
 
   // Multipart request helper
+
   @override
   Future<Response<T>> multipartRequest<T>(
     String path,
-    String method, {
+    MethodType methodType, {
     required Map<String, FileData> files,
     Map<String, dynamic>? data,
     Map<String, dynamic>? queryParameters,
@@ -295,7 +296,7 @@ class ApiService implements IApiService {
       path,
       data: formData,
       queryParameters: queryParameters,
-      options: options.copyWith(method: method),
+      options: options.copyWith(method: methodType.apiValue),
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
@@ -308,14 +309,11 @@ class ApiService implements IApiService {
     String? filePath,
     Uint8List? bytes,
     required String filename,
-    String? contentType,
+    (String, String)? contentType,
   }) async {
     DioMediaType? mediaType;
     if (contentType != null) {
-      final parts = contentType.split('/');
-      if (parts.length == 2) {
-        mediaType = DioMediaType(parts[0], parts[1]);
-      }
+      mediaType = DioMediaType(contentType.$1, contentType.$2);
     }
 
     if (kIsWeb || bytes != null) {
@@ -403,7 +401,7 @@ class ApiService implements IApiService {
   @override
   Future<Response<T>> retryableRequest<T>(
     String path, {
-    String method = 'GET',
+    MethodType methodType = MethodType.get,
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
@@ -422,7 +420,9 @@ class ApiService implements IApiService {
           path,
           data: data,
           queryParameters: queryParameters,
-          options: options?.copyWith(method: method) ?? Options(method: method),
+          options:
+              options?.copyWith(method: methodType.apiValue) ??
+              Options(method: methodType.apiValue),
           cancelToken: cancelToken,
         );
         return response;

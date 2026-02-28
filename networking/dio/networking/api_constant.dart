@@ -7,6 +7,7 @@ class ApiConstant {
   static const String register = '/user/auth/register';
   static const String login = '/user/auth/login';
   static const String userProfile = '/user/profile';
+  static const String socialLogin = '/user/auth/firebase';
 
   // Guest auth endpoints
   static const String guestLogin = '/guest/invitations/check';
@@ -44,10 +45,30 @@ class ApiConstant {
       '/user/documents/$id/sign/digital';
   static String getDocument(String id, {bool isGuest = false}) =>
       '/${isGuest ? 'guest' : 'user'}/documents/$id';
+  static String userDocumentLogs(String id) => '/user/documents/$id/logs';
+  static String userDocumentRenotify(String id) =>
+      '/user/documents/$id/renotify';
 
   // User Signatures endpoints
   static const String userSignatures = '/user/signatures';
   static const String userDashboard = '/user/dashboard';
+
+  // Participants endpoints
+  static const String participants = '/user/contacts';
+  static String participantById(String id) => '/user/contacts/$id';
+
+  // Transactions endpoints
+  static const String transactions = '/user/my-transactions';
+  static const String transactionFilters = '/user/my-transactions/types';
+  static const String walletOverview = '/user/wallet/overview';
+
+  // Notifications endpoints
+  static const String notifications = '/user/notifications';
+  static const String unreadNotificationsCount =
+      '/user/notifications/unread-count';
+  static const String markAllNotificationsRead =
+      '/user/notifications/mark-all-read';
+  static String readNotification(String id) => '/user/notifications/$id/read';
 
   // Apple Sign-In Configuration (Required for Android)
   // TODO: Set the `clientId` and `redirectUri` arguments to the values you entered in the Apple Developer portal during the setup

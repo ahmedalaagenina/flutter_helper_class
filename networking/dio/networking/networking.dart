@@ -10,3 +10,4 @@ export 'retry_interceptor.dart';
 export 'retry_options.dart';
 export 'error/error.dart';
 export 'file_data.dart';
+export 'auth_interceptor.dart';

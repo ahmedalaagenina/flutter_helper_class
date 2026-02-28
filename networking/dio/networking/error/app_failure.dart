@@ -11,7 +11,11 @@ sealed class AppFailure {
 }
 
 class NetworkFailure extends AppFailure {
-  const NetworkFailure(super.message, [super.code, super.data]);
+  const NetworkFailure([
+    super.message = 'No internet connection',
+    super.code,
+    super.data,
+  ]);
 }
 
 class ServerFailure extends AppFailure {
@@ -19,11 +23,7 @@ class ServerFailure extends AppFailure {
 }
 
 class CacheFailure extends AppFailure {
-  const CacheFailure(
-    super.message, [
-    super.code,
-    super.data,
-  ]);
+  const CacheFailure(super.message, [super.code, super.data]);
 }
 
 class UnknownFailure extends AppFailure {

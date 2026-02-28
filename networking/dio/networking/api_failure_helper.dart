@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:idara_esign/core/networking/networking.dart';
 import 'package:idara_esign/core/services/logger_service.dart';
+import 'package:idara_esign/generated/l10n.dart';
 
 class ApiFailureHandler {
   ApiFailureHandler._();
@@ -54,6 +55,8 @@ class ApiFailureHandler {
         return const NoInternetException();
       case DioExceptionType.unknown:
         return UnknownException(error.message ?? "Unexpected Dio error.");
+      default:
+        return UnknownException(S.current.unexpectedError);
     }
   }
 
@@ -61,14 +64,27 @@ class ApiFailureHandler {
   static AppException _mapStatusCodeToException(int code, String message) {
     switch (code) {
       case 400:
-        return BadRequestException(message);
+        return BadRequestException(
+          "${S.current.badRequestCheckInput} $message",
+        );
       case 401:
+        return UnauthorizedException(
+          "${S.current.unauthorizedPleaseLogin} $message",
+        );
       case 403:
-        return UnauthorizedException(message);
+        return UnauthorizedException("${S.current.accessForbidden} $message");
+      case 404:
+        return NotFoundException("${S.current.resourceNotFound} $message");
       case 422:
         return InvalidInputException(message);
+      case 500:
+        return ServerException("${S.current.serverErrorTryLater} $message");
+      case 503:
+        return ServerException(
+          "${S.current.serviceUnavailableTryLater} $message",
+        );
       default:
-        return FetchDataException("Unexpected server response: $code");
+        return FetchDataException("${S.current.genericErrorTryAgain} $code");
     }
   }
 
@@ -76,16 +92,40 @@ class ApiFailureHandler {
   static String _extractMessage(dynamic data) {
     try {
       if (data is Map<String, dynamic>) {
-        if (data.containsKey('message')) return data['message'].toString();
+        if (data.containsKey('errors')) {
+          final errors = data['errors'];
+          if (errors is Map) {
+            for (final value in errors.values) {
+              if (value is List && value.isNotEmpty) {
+                final firstMessage = value.first?.toString() ?? '';
+                if (firstMessage.isNotEmpty) {
+                  return firstMessage;
+                }
+              }
+            }
+          }
+        }
+
+        if (data.containsKey('message') && data['message'] != null) {
+          final message = data['message'].toString();
+          if (message.isNotEmpty) return message;
+        }
+
         if (data.containsKey('error')) {
           final error = data['error'];
-          if (error is String) return error;
+
+          if (error is String && error.isNotEmpty) {
+            return error;
+          }
+
           if (error is Map && error.containsKey('message')) {
-            return error['message'].toString();
+            final msg = error['message']?.toString() ?? '';
+            if (msg.isNotEmpty) return msg;
           }
         }
       }
     } catch (_) {}
+
     return "Something went wrong.";
   }
 

@@ -12,6 +12,14 @@ sealed class AppException implements Exception {
   String toString() =>
       '${prefix ?? 'AppException'}: $message (Code: ${code ?? 'N/A'}) ${data != null ? 'Data: $data' : ''}';
 }
+class ServerException extends AppException {
+  const ServerException([
+    super.message = "Server error occurred.",
+    String prefix = "Server",
+    int? code,
+    Map<String, dynamic>? data,
+  ]) : super(prefix: prefix, code: code, data: data);
+}
 
 class NoInternetException extends AppException {
   const NoInternetException([
@@ -59,6 +67,15 @@ class UnauthorizedException extends AppException {
   ]) : super(prefix: prefix, code: code, data: data);
 }
 
+class AccessForbiddenException extends AppException {
+  const AccessForbiddenException([
+    super.message = "Access forbidden.",
+    String prefix = "Access Forbidden",
+    int? code,
+    Map<String, dynamic>? data,
+  ]) : super(prefix: prefix, code: code, data: data);
+}
+
 class InvalidInputException extends AppException {
   const InvalidInputException([
     super.message = "Invalid input provided.",
@@ -86,6 +103,15 @@ class CustomException extends AppException {
   });
 }
 
+class NotFoundException extends AppException {
+  const NotFoundException([
+    super.message = "Resource not found.",
+    String prefix = "Not Found",
+    int? code,
+    Map<String, dynamic>? data,
+  ]) : super(prefix: prefix, code: code, data: data);
+}
+
 class UnknownException extends AppException {
   const UnknownException([
     super.message = "An unknown error occurred.",
@@ -104,6 +130,7 @@ extension AppExceptionToFailure on AppException {
     UnauthorizedException _ ||
     InvalidInputException _ ||
     FetchDataException _ ||
+    NotFoundException _ ||
     CustomException _ => ServerFailure(message, code, data),
     _ => UnknownFailure(message, code, data),
   };

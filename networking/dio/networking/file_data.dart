@@ -1,12 +1,10 @@
 import 'dart:typed_data';
 
-import 'package:idara_esign/core/networking/api_service.dart';
-
 class FileData {
   final String? filePath;
   final Uint8List? bytes;
   final String filename;
-  final String? contentType;
+  final (String, String)? contentType;
 
   FileData({
     this.filePath,
@@ -23,7 +21,7 @@ class FileData {
   factory FileData.fromPath(
     String path, {
     String? filename,
-    String? contentType,
+    (String, String)? contentType,
   }) {
     return FileData(
       filePath: path,
@@ -36,7 +34,7 @@ class FileData {
   factory FileData.fromBytes(
     Uint8List bytes, {
     required String filename,
-    String? contentType,
+    (String, String)? contentType,
   }) {
     return FileData(bytes: bytes, filename: filename, contentType: contentType);
   }
@@ -44,7 +42,7 @@ class FileData {
   /// Create from PlatformFileService FileResult
   factory FileData.fromFileResult(
     FileResult fileResult, {
-    String? contentType,
+    (String, String)? contentType,
   }) {
     return FileData(
       filePath: fileResult.isWeb ? null : fileResult.path,
@@ -57,6 +55,7 @@ class FileData {
   bool get isFile => filePath != null;
   bool get isBytes => bytes != null;
 }
+
 /// Result object containing file information
 class FileResult {
   final String path;
