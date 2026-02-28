@@ -11,6 +11,10 @@ class AuthInterceptor extends QueuedInterceptor {
   final Dio _dio;
   final Dio _refreshDio;
 
+  /// Once set to true, all subsequent 401s are rejected immediately
+  /// without attempting refresh. Prevents cascading refresh+logout cycles.
+  bool _forceLogout = false;
+
   AuthInterceptor({
     required SecureStorage secureStorage,
     required Dio dio,
@@ -39,9 +43,15 @@ class AuthInterceptor extends QueuedInterceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    // We only care about 401 Unauthorized errors from non-auth endpoints
     if (err.response?.statusCode == 401 &&
         _shouldAttemptRefreshOn401(err.requestOptions)) {
+      // If logout was already triggered, skip refresh entirely
+      if (_forceLogout) {
+        debugPrint('🚫 AuthInterceptor: Logout already triggered, rejecting.');
+        handler.reject(err);
+        return;
+      }
+
       try {
         debugPrint(
           '🔄 AuthInterceptor: 401 received. Attempting to refresh token...',
@@ -52,10 +62,8 @@ class AuthInterceptor extends QueuedInterceptor {
         if (newToken != null) {
           debugPrint('✅ AuthInterceptor: Token refreshed successfully!');
 
-          // Update the Authorization header and retry the original request
           final options = err.requestOptions;
           options.headers['Authorization'] = 'Bearer $newToken';
-          // Mark as retried so we don't refresh again if this also gets 401
           options.extra['_isRetryAfterRefresh'] = true;
 
           final response = await _dio.fetch(options);
@@ -75,14 +83,10 @@ class AuthInterceptor extends QueuedInterceptor {
         handler.reject(err);
       }
     } else {
-      // Not a 401 or it's an auth request 401 (e.g., login failed with wrong password)
       handler.next(err);
     }
   }
 
-
-  /// Refreshes the auth token using [_refreshDio] (no interceptors).
-  /// Returns the new token on success, or throws on failure.
   Future<String?> _attemptTokenRefresh() async {
     final currentToken = await _secureStorage.read(key: StorageKeys.authToken);
 
@@ -105,7 +109,6 @@ class AuthInterceptor extends QueuedInterceptor {
     return null;
   }
 
-
   bool _requiresToken(RequestOptions options) {
     final path = options.path;
     return !path.contains(ApiConstant.login);
@@ -125,8 +128,12 @@ class AuthInterceptor extends QueuedInterceptor {
   }
 
   void _triggerLogout() {
+    if (_forceLogout) return; // Already triggered, don't fire LogoutEvent again
+    _forceLogout = true;
+
     try {
       debugPrint('🔌 AuthInterceptor: Triggering forced logout');
+      _secureStorage.deleteAll();
       getIt<AuthBloc>().add(const LogoutEvent());
     } catch (e) {
       debugPrint('Failed to trigger logout from interceptor: $e');
