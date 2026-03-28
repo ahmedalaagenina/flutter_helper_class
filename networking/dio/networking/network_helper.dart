@@ -9,6 +9,19 @@ import 'package:idara_esign/core/security/secure_storage.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Future<void> _registerNetworkStack() async {
+//   getIt.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl());
+//   getIt.registerFactory(() => CancelToken());
+//   getIt.registerSingletonAsync<Dio>(
+//     () async => await NetworkHelper(getIt(), getIt(), getIt()).createDio(),
+//   );
+//   getIt.registerSingletonWithDependencies<IApiService>(
+//     () => ApiService(getIt<Dio>()),
+//     dependsOn: [Dio],
+//   );
+//   await getIt.isReady<Dio>();
+// }
+
 /// Helper class for creating and configuring Dio instances
 class NetworkHelper {
   final AppConfig _config;
