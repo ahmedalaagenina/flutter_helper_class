@@ -2,34 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:idara_esign/core/networking/networking.dart';
 
 /// Abstract class defining the interface for API services
-enum MethodType {
-  get,
-  post,
-  put,
-  delete,
-  patch,
-  head,
-  options;
-
-  String get apiValue {
-    switch (this) {
-      case MethodType.get:
-        return 'GET';
-      case MethodType.post:
-        return 'POST';
-      case MethodType.put:
-        return 'PUT';
-      case MethodType.delete:
-        return 'DELETE';
-      case MethodType.patch:
-        return 'PATCH';
-      case MethodType.head:
-        return 'HEAD';
-      case MethodType.options:
-        return 'OPTIONS';
-    }
-  }
-}
 
 abstract class IApiService {
   // GET method
@@ -124,19 +96,5 @@ abstract class IApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
-  });
-
-  // Retryable request
-  Future<Response<T>> retryableRequest<T>(
-    String path, {
-    MethodType methodType = MethodType.get,
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-    CancelToken? cancelToken,
-    int maxRetries = 3,
-    Duration? retryDelay,
-    bool Function(DioException)? retryCondition,
-    void Function(int, Exception)? onRetry,
   });
 }

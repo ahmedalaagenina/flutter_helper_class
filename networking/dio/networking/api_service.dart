@@ -1,18 +1,11 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:idara_esign/core/networking/networking.dart';
 
 class ApiService implements IApiService {
   final Dio _dio;
-  final int defaultMaxRetries;
-  final Duration defaultRetryDelay;
-  ApiService(
-    this._dio, {
-    this.defaultMaxRetries = 3,
-    this.defaultRetryDelay = const Duration(seconds: 2),
-  });
+
+  ApiService(this._dio);
 
   /// Registering Dio and CancelToken
   //  getIt.registerLazySingleton(() => CancelToken());
@@ -343,17 +336,12 @@ class ApiService implements IApiService {
     if (retryOptions != null) {
       mergedOptions.extra!['maxRetries'] = retryOptions.maxRetries;
       mergedOptions.extra!['retryDelay'] = retryOptions.retryDelay;
-    } else if (!mergedOptions.extra!.containsKey('maxRetries')) {
-      // Use default values if not specified
-      mergedOptions.extra!['maxRetries'] = defaultMaxRetries;
-      mergedOptions.extra!['retryDelay'] = defaultRetryDelay;
     }
 
     return mergedOptions;
   }
 
   //? Here's how to use each approach:
-  //! 1. Automatic Retry (via Interceptor)
   // This happens automatically for all requests:
   // try {
   //   final response = await apiService.get('/endpoint',
@@ -362,97 +350,4 @@ class ApiService implements IApiService {
   // } catch (e) {
   // All retries failed
   // }
-
-  //! 2. Manual Retry
-  //* final cancelToken = CancelToken();
-  // try {
-  //   final response = await apiService.retryableRequest<Map<String, dynamic>>(
-  //     '/complex-endpoint',
-  //     method: 'POST', //! Must Be in uppercase
-  //     data: {'key': 'value'},
-  //     maxRetries: 5, //! Max Retries
-  //     retryDelay: Duration(seconds: 2),
-  //     cancelToken: cancelToken,
-  //     retryCondition: (error) {
-  //       if (error.response?.statusCode == 429) { // Too Many Requests
-  //         final retryAfter = error.response?.headers['retry-after']?.first;
-  //         if (retryAfter != null) {
-  //           final seconds = int.tryParse(retryAfter);
-  //           if (seconds != null) {
-  //             return true;
-  //           }
-  //         }
-  //       }
-  //       return error.type == DioExceptionType.connectionTimeout;
-  //     },
-  //     onRetry: (attemptNumber, exception) {
-  //       if (attemptNumber == 3) {
-  //         cancelToken.cancel('Cancelling after 3 retries');
-  //       }
-  //     },
-  //   );
-
-  //   print('Success: ${response.data}');
-  // } catch (e) {
-  //   print('Failed: $e');
-  // }
-
-  // Retry request for manual retry
-  @override
-  Future<Response<T>> retryableRequest<T>(
-    String path, {
-    MethodType methodType = MethodType.get,
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-    CancelToken? cancelToken,
-    int maxRetries = 3,
-    Duration? retryDelay,
-    bool Function(DioException)? retryCondition,
-    void Function(int, Exception)? onRetry,
-  }) async {
-    int attempts = 0;
-    late Exception lastException;
-
-    while (attempts < maxRetries) {
-      try {
-        final response = await _dio.request<T>(
-          path,
-          data: data,
-          queryParameters: queryParameters,
-          options:
-              options?.copyWith(method: methodType.apiValue) ??
-              Options(method: methodType.apiValue),
-          cancelToken: cancelToken,
-        );
-        return response;
-      } on DioException catch (e) {
-        lastException = e;
-        attempts++;
-
-        final shouldRetry =
-            retryCondition?.call(e) ?? _defaultRetryCondition(e);
-
-        if (!shouldRetry || attempts >= maxRetries) {
-          rethrow;
-        }
-
-        onRetry?.call(attempts, e);
-
-        if (retryDelay != null) {
-          await Future.delayed(retryDelay);
-        }
-      }
-    }
-
-    throw lastException;
-  }
-
-  bool _defaultRetryCondition(DioException error) {
-    return error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.receiveTimeout ||
-        (!kIsWeb && error.error is SocketException) ||
-        (error.response?.statusCode != null &&
-            error.response!.statusCode! >= 500);
-  }
 }

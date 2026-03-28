@@ -35,8 +35,8 @@ class NetworkHelper {
     refreshDio.interceptors.addAll([
       RetryInterceptor(
         dio: refreshDio,
-        maxRetries: 2,
-        initialDelay: const Duration(seconds: 1),
+        maxRetries: defaultMaxRetries,
+        initialDelay: defaultRetryDelay,
       ),
       if (kDebugMode)
         PrettyDioLogger(
