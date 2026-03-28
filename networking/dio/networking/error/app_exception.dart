@@ -12,6 +12,7 @@ sealed class AppException implements Exception {
   String toString() =>
       '${prefix ?? 'AppException'}: $message (Code: ${code ?? 'N/A'}) ${data != null ? 'Data: $data' : ''}';
 }
+
 class ServerException extends AppException {
   const ServerException([
     super.message = "Server error occurred.",

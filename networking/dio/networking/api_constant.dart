@@ -48,6 +48,10 @@ class ApiConstant {
   static String userDocumentLogs(String id) => '/user/documents/$id/logs';
   static String userDocumentRenotify(String id) =>
       '/user/documents/$id/renotify';
+  static String userDocumentExtendExpiry(String id) =>
+      '/user/documents/$id/extend-expiry';
+  static String userDocumentUnarchive(String id) =>
+      '/user/documents/$id/activate';
 
   // User Signatures endpoints
   static const String userSignatures = '/user/signatures';
@@ -71,6 +75,8 @@ class ApiConstant {
   static String readNotification(String id) => '/user/notifications/$id/read';
 
   // Apple Sign-In Configuration (Required for Android)
+  static const String userCoinPackages = '/user/coin-packages';
+
   // TODO: Set the `clientId` and `redirectUri` arguments to the values you entered in the Apple Developer portal during the setup
 
   static const String appleServiceId = 'com.idara.esign';

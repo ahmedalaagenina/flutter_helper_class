@@ -7,13 +7,15 @@ import 'package:idara_esign/config/env/app_config.dart';
 import 'package:idara_esign/core/networking/networking.dart';
 import 'package:idara_esign/core/security/secure_storage.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Helper class for creating and configuring Dio instances
 class NetworkHelper {
   final AppConfig _config;
   final SecureStorage _secureStorage;
+  final SharedPreferences _prefs;
 
-  NetworkHelper(this._config, this._secureStorage);
+  NetworkHelper(this._config, this._secureStorage, this._prefs);
 
   Future<Dio> createDio({
     int defaultMaxRetries = 3,
@@ -47,6 +49,7 @@ class NetworkHelper {
     // Add interceptors in order
     dio.interceptors.addAll([
       AuthInterceptor(
+        prefs: _prefs,
         secureStorage: _secureStorage,
         dio: dio,
         refreshDio: refreshDio,
