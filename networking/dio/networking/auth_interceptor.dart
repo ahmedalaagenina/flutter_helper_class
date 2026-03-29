@@ -4,14 +4,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:idara_esign/core/constants/storage_keys.dart';
 import 'package:idara_esign/core/networking/networking.dart';
-import 'package:idara_esign/core/security/secure_storage.dart';
 import 'package:idara_esign/di/injection_container.dart';
 import 'package:idara_esign/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthInterceptor extends QueuedInterceptor {
   final SharedPreferences _prefs;
-  final SecureStorage _secureStorage;
+  final AuthTokenStore _tokenStore;
   final Dio _dio;
   final Dio _refreshDio;
 
@@ -22,11 +21,11 @@ class AuthInterceptor extends QueuedInterceptor {
 
   AuthInterceptor({
     required SharedPreferences prefs,
-    required SecureStorage secureStorage,
+    required AuthTokenStore tokenStore,
     required Dio dio,
     required Dio refreshDio,
   }) : _prefs = prefs,
-       _secureStorage = secureStorage,
+       _tokenStore = tokenStore,
        _dio = dio,
        _refreshDio = refreshDio;
 
@@ -43,7 +42,7 @@ class AuthInterceptor extends QueuedInterceptor {
     }
     try {
       if (_requiresToken(options)) {
-        final token = await _secureStorage.read(key: StorageKeys.authToken);
+        final token = await _tokenStore.getToken();
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
@@ -71,9 +70,7 @@ class AuthInterceptor extends QueuedInterceptor {
             .requestOptions
             .headers['Authorization']
             ?.replaceAll('Bearer ', '');
-        final String? currentTokenInStorage = await _secureStorage.read(
-          key: StorageKeys.authToken,
-        );
+        final String? currentTokenInStorage = await _tokenStore.getToken();
 
         if (failedRequestToken != null &&
             currentTokenInStorage != null &&
@@ -145,7 +142,7 @@ class AuthInterceptor extends QueuedInterceptor {
   }
 
   Future<String?> _doRefreshToken() async {
-    final currentToken = await _secureStorage.read(key: StorageKeys.authToken);
+    final currentToken = await _tokenStore.getToken();
 
     final response = await _refreshDio.post(
       ApiConstant.refreshToken,
@@ -160,7 +157,8 @@ class AuthInterceptor extends QueuedInterceptor {
     final newToken = data?['data']?['token']?.toString();
 
     if (newToken != null && newToken.isNotEmpty) {
-      await _secureStorage.write(key: StorageKeys.authToken, value: newToken);
+      final isPersistent = await _tokenStore.isPersistentSession();
+      await _tokenStore.saveToken(newToken, persist: isPersistent);
       return newToken;
     }
     return null;

@@ -5,13 +5,16 @@ import 'package:dio/io.dart' as ad;
 import 'package:flutter/foundation.dart';
 import 'package:idara_esign/config/env/app_config.dart';
 import 'package:idara_esign/core/networking/networking.dart';
-import 'package:idara_esign/core/security/secure_storage.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Future<void> _registerNetworkStack() async {
 //   getIt.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl());
 //   getIt.registerFactory(() => CancelToken());
+//   getIt.registerLazySingleton<AuthTokenStore>(
+//     () =>
+//         AuthTokenStoreImpl(secureStorage: getIt(), sharedPreferences: getIt()),
+//   );
 //   getIt.registerSingletonAsync<Dio>(
 //     () async => await NetworkHelper(getIt(), getIt(), getIt()).createDio(),
 //   );
@@ -25,10 +28,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Helper class for creating and configuring Dio instances
 class NetworkHelper {
   final AppConfig _config;
-  final SecureStorage _secureStorage;
+  final AuthTokenStore _tokenStore;
   final SharedPreferences _prefs;
 
-  NetworkHelper(this._config, this._secureStorage, this._prefs);
+  NetworkHelper(this._config, this._tokenStore, this._prefs);
 
   Future<Dio> createDio({
     int defaultMaxRetries = 3,
@@ -63,11 +66,10 @@ class NetworkHelper {
     dio.interceptors.addAll([
       AuthInterceptor(
         prefs: _prefs,
-        secureStorage: _secureStorage,
+        tokenStore: _tokenStore,
         dio: dio,
         refreshDio: refreshDio,
       ),
-      CustomInterceptor(),
       RetryInterceptor(
         dio: dio,
         maxRetries: defaultMaxRetries,

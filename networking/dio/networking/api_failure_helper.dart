@@ -62,29 +62,44 @@ class ApiFailureHandler {
 
   /// Maps HTTP status codes to proper AppExceptions.
   static AppException _mapStatusCodeToException(int code, String message) {
+    final hasServerMessage =
+        message.isNotEmpty && message != "Something went wrong.";
+
     switch (code) {
       case 400:
         return BadRequestException(
-          "${S.current.badRequestCheckInput} $message",
+          hasServerMessage ? message : S.current.badRequestCheckInput,
         );
       case 401:
         return UnauthorizedException(
-          "${S.current.unauthorizedPleaseLogin} $message",
+          hasServerMessage ? message : S.current.unauthorizedPleaseLogin,
         );
       case 403:
-        return UnauthorizedException("${S.current.accessForbidden} $message");
+        return UnauthorizedException(
+          hasServerMessage ? message : S.current.accessForbidden,
+        );
       case 404:
-        return NotFoundException("${S.current.resourceNotFound} $message");
+        return NotFoundException(
+          hasServerMessage ? message : S.current.resourceNotFound,
+        );
       case 422:
-        return InvalidInputException(message);
+        return InvalidInputException(
+          hasServerMessage ? message : S.current.badRequestCheckInput,
+        );
       case 500:
-        return ServerException("${S.current.serverErrorTryLater} $message");
+        return ServerException(
+          hasServerMessage ? message : S.current.serverErrorTryLater,
+        );
       case 503:
         return ServerException(
-          "${S.current.serviceUnavailableTryLater} $message",
+          hasServerMessage ? message : S.current.serviceUnavailableTryLater,
         );
       default:
-        return FetchDataException("${S.current.genericErrorTryAgain} $code");
+        return FetchDataException(
+          hasServerMessage
+              ? message
+              : "${S.current.genericErrorTryAgain} ($code)",
+        );
     }
   }
 
