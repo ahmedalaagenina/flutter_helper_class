@@ -42,7 +42,7 @@ class ApiFailureHandler {
     final String message = _extractMessage(data);
     switch (error.type) {
       case DioExceptionType.cancel:
-        return const CustomException("Request was cancelled.");
+        return CustomException(S.current.requestCancelled);
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
@@ -50,11 +50,11 @@ class ApiFailureHandler {
       case DioExceptionType.badResponse:
         return _mapStatusCodeToException(statusCode, message);
       case DioExceptionType.badCertificate:
-        return const CustomException("Bad certificate received from server.");
+        return CustomException(S.current.badCertificate);
       case DioExceptionType.connectionError:
-        return const NoInternetException();
+        return NoInternetException(S.current.noInternetConnection);
       case DioExceptionType.unknown:
-        return UnknownException(error.message ?? "Unexpected Dio error.");
+        return UnknownException(error.message ?? S.current.unexpectedDioError);
       default:
         return UnknownException(S.current.unexpectedError);
     }
@@ -63,7 +63,7 @@ class ApiFailureHandler {
   /// Maps HTTP status codes to proper AppExceptions.
   static AppException _mapStatusCodeToException(int code, String message) {
     final hasServerMessage =
-        message.isNotEmpty && message != "Something went wrong.";
+        message.isNotEmpty && message != S.current.somethingWentWrong;
 
     switch (code) {
       case 400:
@@ -141,7 +141,7 @@ class ApiFailureHandler {
       }
     } catch (_) {}
 
-    return "Something went wrong.";
+    return S.current.somethingWentWrong;
   }
 
   /// Logs the original and mapped error types.

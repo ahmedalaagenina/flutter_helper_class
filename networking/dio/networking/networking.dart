@@ -1,11 +1,11 @@
 export 'api_call_handler.dart';
 export 'api_constant.dart';
 export 'api_failure_helper.dart';
-export 'api_service.dart';
+export 'api_service_impl.dart';
 export 'auth_interceptor.dart';
 export 'error/error.dart';
 export 'file_data.dart';
-export 'i_api_service.dart';
+export 'api_service.dart';
 export 'method_type.dart';
 export 'network_helper.dart';
 export 'network_info.dart';

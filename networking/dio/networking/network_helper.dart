@@ -18,27 +18,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 //   getIt.registerSingletonAsync<Dio>(
 //     () async => await NetworkHelper(getIt(), getIt(), getIt()).createDio(),
 //   );
-//   getIt.registerSingletonWithDependencies<IApiService>(
-//     () => ApiService(getIt<Dio>()),
+//   getIt.registerSingletonWithDependencies<ApiService>(
+//     () => ApiServiceImpl(getIt<Dio>()),
 //     dependsOn: [Dio],
 //   );
 //   await getIt.isReady<Dio>();
+//   await getIt.isReady<ApiService>();
 // }
 
 /// Helper class for creating and configuring Dio instances
 class NetworkHelper {
-  final AppConfig _config;
   final AuthTokenStore _tokenStore;
   final SharedPreferences _prefs;
 
-  NetworkHelper(this._config, this._tokenStore, this._prefs);
+  NetworkHelper(this._tokenStore, this._prefs);
 
   Future<Dio> createDio({
     int defaultMaxRetries = 3,
     Duration defaultRetryDelay = const Duration(seconds: 2),
   }) async {
     final baseOptions = BaseOptions(
-      baseUrl: _config.apiBaseUrl,
+      baseUrl: ApiConstant.baseUrl,
       followRedirects: true,
       receiveDataWhenStatusError: true,
       connectTimeout: const Duration(seconds: 60),

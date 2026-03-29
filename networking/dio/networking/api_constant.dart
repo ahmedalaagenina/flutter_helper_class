@@ -1,7 +1,7 @@
 class ApiConstant {
   ApiConstant._();
   // Base paths
-  static const String apiVersion = '/api/v1';
+  static const String baseUrl = 'https://api.idara.app/api/v1';
 
   // Auth endpoints (Logged-in users)
   static const String register = '/user/auth/register';

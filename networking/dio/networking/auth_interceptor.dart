@@ -190,7 +190,7 @@ class AuthInterceptor extends QueuedInterceptor {
 
     try {
       debugPrint('🔌 AuthInterceptor: Triggering forced logout');
-      getIt<AuthBloc>().add(const LogoutEvent());
+      getIt<AdminSessionBloc>().add(const AdminSessionLogoutRequested());
     } catch (e) {
       debugPrint('Failed to trigger logout from interceptor: $e');
     }
