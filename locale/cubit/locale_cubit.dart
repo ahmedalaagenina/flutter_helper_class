@@ -1,13 +1,9 @@
-import 'package:bloc/bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:idara_esign/config/routes/app_router.dart';
-import 'package:idara_esign/core/constants/app_constants.dart';
-import 'package:idara_esign/core/constants/storage_keys.dart';
-import 'package:idara_esign/core/services/logger_service.dart';
-import 'package:idara_esign/core/widgets/restart_widget.dart';
-import 'package:idara_esign/generated/l10n.dart';
 import 'package:intl/intl.dart';
+import 'package:kassemha/core/constants/app_constants.dart';
+import 'package:kassemha/core/local_storage/storage_keys.dart';
+import 'package:kassemha/generated/l10n.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 part 'locale_state.dart';
