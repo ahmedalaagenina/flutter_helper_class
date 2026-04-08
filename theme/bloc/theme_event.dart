@@ -22,16 +22,6 @@ class ThemeModeChanged extends ThemeEvent {
   List<Object?> get props => [themeMode];
 }
 
-// Event for when system theme changes
-class ThemeUpdated extends ThemeEvent {
-  final ThemeData themeData;
-
-  const ThemeUpdated(this.themeData);
-
-  @override
-  List<Object?> get props => [themeData];
-}
-
 // Event to change typography font
 class TypographyFontChanged extends ThemeEvent {
   final AppTypographyFont typography;

@@ -8,7 +8,8 @@ class ThemeState extends Equatable {
   final AppTypographyFont typographyFont;
   final double fontSizeScaleFactor;
   final String? errorMessage;
-  final ThemeData? themeData;
+  final ThemeData? lightThemeData;
+  final ThemeData? darkThemeData;
 
   const ThemeState({
     this.status = ThemeStatus.initial,
@@ -16,18 +17,9 @@ class ThemeState extends Equatable {
     this.typographyFont = AppTypographyFont.appDefault,
     this.fontSizeScaleFactor = 1.0,
     this.errorMessage,
-    this.themeData,
+    this.lightThemeData,
+    this.darkThemeData,
   });
-
-  // Current brightness based on theme mode
-  Brightness get currentBrightness {
-    if (themeMode == ThemeMode.system) {
-      final platformBrightness =
-          WidgetsBinding.instance.platformDispatcher.platformBrightness;
-      return platformBrightness;
-    }
-    return themeMode == ThemeMode.dark ? Brightness.dark : Brightness.light;
-  }
 
   // Create a copy of this state with optional new values
   ThemeState copyWith({
@@ -37,7 +29,8 @@ class ThemeState extends Equatable {
     double? fontSizeScaleFactor,
     String? errorMessage,
     bool clearError = false,
-    ThemeData? themeData,
+    ThemeData? lightThemeData,
+    ThemeData? darkThemeData,
   }) {
     return ThemeState(
       status: status ?? this.status,
@@ -45,14 +38,15 @@ class ThemeState extends Equatable {
       typographyFont: typographyFont ?? this.typographyFont,
       fontSizeScaleFactor: fontSizeScaleFactor ?? this.fontSizeScaleFactor,
       errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
-      themeData: themeData ?? this.themeData,
+      lightThemeData: lightThemeData ?? this.lightThemeData,
+      darkThemeData: darkThemeData ?? this.darkThemeData,
     );
   }
 
-  // Create theme data based on current state
-  ThemeData createThemeData() =>
+  // Create theme data for a specific brightness from the current settings.
+  ThemeData createThemeData({required Brightness brightness}) =>
       AppTheme.create(
-        brightness: currentBrightness,
+        brightness: brightness,
         typography: typographyFont,
         fontSizeScaleFactor: fontSizeScaleFactor,
       ).build();
@@ -63,7 +57,8 @@ class ThemeState extends Equatable {
     themeMode,
     typographyFont,
     fontSizeScaleFactor,
-    themeData,
+    lightThemeData,
+    darkThemeData,
     errorMessage,
   ];
 }

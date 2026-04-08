@@ -1,33 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:typo_color_them/theme/theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  final prefs = await SharedPreferences.getInstance();
+  runApp(MyApp(prefs: prefs));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final SharedPreferences prefs;
+
+  const MyApp({super.key, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => ThemeBloc(),
-      child: ThemeListener(
-        child: BlocBuilder<ThemeBloc, ThemeState>(
-          buildWhen:
-              (previous, current) => previous.themeData != current.themeData,
-          builder: (context, state) {
-            return MaterialApp(
-              title: 'Flutter Theme Demo',
-              theme: state.themeData ?? state.createThemeData(),
-              home: const HomePage(),
-              debugShowCheckedModeBanner: false,
-            );
-          },
-        ),
+      lazy: false,
+      create: (_) => ThemeBloc(prefs)..add(const ThemeInitialize()),
+      child: const _AppView(),
+    );
+  }
+}
+
+class _AppView extends StatelessWidget {
+  const _AppView();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocSelector<
+      ThemeBloc,
+      ThemeState,
+      ({ThemeData lightTheme, ThemeData darkTheme, ThemeMode themeMode})
+    >(
+      selector: (state) => (
+        lightTheme:
+            state.lightThemeData ??
+            state.createThemeData(brightness: Brightness.light),
+        darkTheme:
+            state.darkThemeData ??
+            state.createThemeData(brightness: Brightness.dark),
+        themeMode: state.themeMode,
       ),
+      builder: (context, themeConfig) {
+        return MaterialApp(
+          title: 'Flutter Theme Demo',
+          theme: themeConfig.lightTheme,
+          darkTheme: themeConfig.darkTheme,
+          themeMode: themeConfig.themeMode,
+          home: const HomePage(),
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }
@@ -46,8 +71,8 @@ class HomePage extends StatelessWidget {
         actions: [
           // Theme toggle button
           BlocBuilder<ThemeBloc, ThemeState>(
-            buildWhen:
-                (previous, current) => previous.themeMode != current.themeMode,
+            buildWhen: (previous, current) =>
+                previous.themeMode != current.themeMode,
             builder: (context, state) {
               return IconButton(
                 icon: Icon(
@@ -59,12 +84,11 @@ class HomePage extends StatelessWidget {
                 ),
                 onPressed: () {
                   final currentMode = state.themeMode;
-                  final newMode =
-                      currentMode == ThemeMode.light
-                          ? ThemeMode.dark
-                          : currentMode == ThemeMode.dark
-                          ? ThemeMode.system
-                          : ThemeMode.light;
+                  final newMode = currentMode == ThemeMode.light
+                      ? ThemeMode.dark
+                      : currentMode == ThemeMode.dark
+                      ? ThemeMode.system
+                      : ThemeMode.light;
 
                   context.read<ThemeBloc>().add(ThemeModeChanged(newMode));
                 },
@@ -74,46 +98,43 @@ class HomePage extends StatelessWidget {
 
           // Font selection menu
           BlocBuilder<ThemeBloc, ThemeState>(
-            buildWhen:
-                (previous, current) =>
-                    previous.typographyFont != current.typographyFont,
+            buildWhen: (previous, current) =>
+                previous.typographyFont != current.typographyFont,
             builder: (context, state) {
               return PopupMenuButton<AppTypographyFont>(
                 onSelected: (font) {
                   context.read<ThemeBloc>().add(TypographyFontChanged(font));
                 },
-                itemBuilder:
-                    (_) => [
-                      const PopupMenuItem(
-                        value: AppTypographyFont.appDefault,
-                        child: Text('Default'),
-                      ),
-                      const PopupMenuItem(
-                        value: AppTypographyFont.roboto,
-                        child: Text('Roboto'),
-                      ),
-                      const PopupMenuItem(
-                        value: AppTypographyFont.cairo,
-                        child: Text('Cairo'),
-                      ),
-                      const PopupMenuItem(
-                        value: AppTypographyFont.arabicTypography,
-                        child: Text('Arabic Typography'),
-                      ),
-                      const PopupMenuItem(
-                        value: AppTypographyFont.englishTypography,
-                        child: Text('English Typography'),
-                      ),
-                    ],
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: AppTypographyFont.appDefault,
+                    child: Text('Default'),
+                  ),
+                  const PopupMenuItem(
+                    value: AppTypographyFont.roboto,
+                    child: Text('Roboto'),
+                  ),
+                  const PopupMenuItem(
+                    value: AppTypographyFont.cairo,
+                    child: Text('Cairo'),
+                  ),
+                  const PopupMenuItem(
+                    value: AppTypographyFont.arabicTypography,
+                    child: Text('Arabic Typography'),
+                  ),
+                  const PopupMenuItem(
+                    value: AppTypographyFont.englishTypography,
+                    child: Text('English Typography'),
+                  ),
+                ],
               );
             },
           ),
 
           // Font size scale factor menu
           BlocBuilder<ThemeBloc, ThemeState>(
-            buildWhen:
-                (previous, current) =>
-                    previous.fontSizeScaleFactor != current.fontSizeScaleFactor,
+            buildWhen: (previous, current) =>
+                previous.fontSizeScaleFactor != current.fontSizeScaleFactor,
             builder: (context, state) {
               return PopupMenuButton<double>(
                 tooltip: 'Font size',
@@ -123,33 +144,23 @@ class HomePage extends StatelessWidget {
                     FontSizeScaleFactorChanged(scaleFactor),
                   );
                 },
-                itemBuilder:
-                    (_) => [
-                      const PopupMenuItem(
-                        value: 0.8,
-                        child: Text('Small (0.8x)'),
-                      ),
-                      const PopupMenuItem(
-                        value: 0.9,
-                        child: Text('Medium Small (0.9x)'),
-                      ),
-                      const PopupMenuItem(
-                        value: 1.0,
-                        child: Text('Normal (1.0x)'),
-                      ),
-                      const PopupMenuItem(
-                        value: 1.1,
-                        child: Text('Medium Large (1.1x)'),
-                      ),
-                      const PopupMenuItem(
-                        value: 1.2,
-                        child: Text('Large (1.2x)'),
-                      ),
-                      const PopupMenuItem(
-                        value: 1.3,
-                        child: Text('Extra Large (1.3x)'),
-                      ),
-                    ],
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 0.8, child: Text('Small (0.8x)')),
+                  const PopupMenuItem(
+                    value: 0.9,
+                    child: Text('Medium Small (0.9x)'),
+                  ),
+                  const PopupMenuItem(value: 1.0, child: Text('Normal (1.0x)')),
+                  const PopupMenuItem(
+                    value: 1.1,
+                    child: Text('Medium Large (1.1x)'),
+                  ),
+                  const PopupMenuItem(value: 1.2, child: Text('Large (1.2x)')),
+                  const PopupMenuItem(
+                    value: 1.3,
+                    child: Text('Extra Large (1.3x)'),
+                  ),
+                ],
               );
             },
           ),
@@ -221,11 +232,10 @@ class HomePage extends StatelessWidget {
               colors: colors,
               children: [
                 BlocBuilder<ThemeBloc, ThemeState>(
-                  buildWhen:
-                      (previous, current) =>
-                          previous.themeMode != current.themeMode ||
-                          previous.fontSizeScaleFactor !=
-                              current.fontSizeScaleFactor,
+                  buildWhen: (previous, current) =>
+                      previous.themeMode != current.themeMode ||
+                      previous.fontSizeScaleFactor !=
+                          current.fontSizeScaleFactor,
                   builder: (context, state) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,30 +251,27 @@ class HomePage extends StatelessWidget {
                               label: 'Light',
                               isSelected: state.themeMode == ThemeMode.light,
                               icon: Icons.light_mode,
-                              onPressed:
-                                  () => context.read<ThemeBloc>().add(
-                                    const ThemeModeChanged(ThemeMode.light),
-                                  ),
+                              onPressed: () => context.read<ThemeBloc>().add(
+                                const ThemeModeChanged(ThemeMode.light),
+                              ),
                             ),
                             _ThemeModeButton(
                               mode: ThemeMode.dark,
                               label: 'Dark',
                               isSelected: state.themeMode == ThemeMode.dark,
                               icon: Icons.dark_mode,
-                              onPressed:
-                                  () => context.read<ThemeBloc>().add(
-                                    const ThemeModeChanged(ThemeMode.dark),
-                                  ),
+                              onPressed: () => context.read<ThemeBloc>().add(
+                                const ThemeModeChanged(ThemeMode.dark),
+                              ),
                             ),
                             _ThemeModeButton(
                               mode: ThemeMode.system,
                               label: 'System',
                               isSelected: state.themeMode == ThemeMode.system,
                               icon: Icons.brightness_auto,
-                              onPressed:
-                                  () => context.read<ThemeBloc>().add(
-                                    const ThemeModeChanged(ThemeMode.system),
-                                  ),
+                              onPressed: () => context.read<ThemeBloc>().add(
+                                const ThemeModeChanged(ThemeMode.system),
+                              ),
                             ),
                           ],
                         ),
@@ -326,8 +333,8 @@ class HomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 BlocBuilder<ThemeBloc, ThemeState>(
-                  buildWhen:
-                      (_, __) => true, // Update every build for accurate time
+                  buildWhen: (_, __) =>
+                      true, // Update every build for accurate time
                   builder: (context, _) {
                     final now = DateTime.now().toUtc();
                     final formattedDate =

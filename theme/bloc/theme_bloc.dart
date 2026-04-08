@@ -14,10 +14,11 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
   static const String _typographyFontKey = 'typography_font';
   static const String _fontSizeScaleFactorKey = 'font_size_scale_factor';
 
-  ThemeBloc() : super(const ThemeState()) {
+  final SharedPreferences prefs;
+
+  ThemeBloc(this.prefs) : super(const ThemeState()) {
     on<ThemeInitialize>(_onInitialize);
     on<ThemeModeChanged>(_onThemeModeChanged);
-    on<ThemeUpdated>(_onThemeUpdated);
     on<TypographyFontChanged>(_onTypographyFontChanged);
     on<FontSizeScaleFactorChanged>(_onFontSizeScaleFactorChanged);
     on<ThemeModeAndFontChanged>(_onThemeModeAndFontChanged);
@@ -32,8 +33,6 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
     emit(state.copyWith(status: ThemeStatus.loading));
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-
       // Load theme mode
       final themeModeString = prefs.getString(_themeModeKey);
       ThemeMode themeMode = ThemeMode.system;
@@ -71,10 +70,14 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         clearError: true,
       );
 
-      // Generate theme data
-      final themeData = newState.createThemeData();
-
-      emit(newState.copyWith(themeData: themeData));
+      emit(
+        newState.copyWith(
+          lightThemeData: newState.createThemeData(
+            brightness: Brightness.light,
+          ),
+          darkThemeData: newState.createThemeData(brightness: Brightness.dark),
+        ),
+      );
     } catch (e) {
       emit(
         state.copyWith(
@@ -91,7 +94,6 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
     Emitter<ThemeState> emit,
   ) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_themeModeKey, event.themeMode.toString());
 
       final newState = state.copyWith(
@@ -99,8 +101,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         status: ThemeStatus.loaded,
       );
 
-      final themeData = newState.createThemeData();
-      emit(newState.copyWith(themeData: themeData));
+      emit(newState);
     } catch (e) {
       emit(
         state.copyWith(
@@ -111,20 +112,12 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
     }
   }
 
-  void _onThemeUpdated(ThemeUpdated event, Emitter<ThemeState> emit) {
-    // Simply update the theme data to reflect system changes
-    emit(
-      state.copyWith(themeData: event.themeData, status: ThemeStatus.loaded),
-    );
-  }
-
   // Handler for TypographyFontChanged event
   Future<void> _onTypographyFontChanged(
     TypographyFontChanged event,
     Emitter<ThemeState> emit,
   ) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_typographyFontKey, event.typography.toString());
       TypographyFactory.clearCache();
       final newState = state.copyWith(
@@ -132,8 +125,14 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         status: ThemeStatus.loaded,
       );
 
-      final themeData = newState.createThemeData();
-      emit(newState.copyWith(themeData: themeData));
+      emit(
+        newState.copyWith(
+          lightThemeData: newState.createThemeData(
+            brightness: Brightness.light,
+          ),
+          darkThemeData: newState.createThemeData(brightness: Brightness.dark),
+        ),
+      );
     } catch (e) {
       emit(
         state.copyWith(
@@ -150,7 +149,6 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
     Emitter<ThemeState> emit,
   ) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble(_fontSizeScaleFactorKey, event.scaleFactor);
 
       final newState = state.copyWith(
@@ -158,8 +156,14 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         status: ThemeStatus.loaded,
       );
 
-      final themeData = newState.createThemeData();
-      emit(newState.copyWith(themeData: themeData));
+      emit(
+        newState.copyWith(
+          lightThemeData: newState.createThemeData(
+            brightness: Brightness.light,
+          ),
+          darkThemeData: newState.createThemeData(brightness: Brightness.dark),
+        ),
+      );
     } catch (e) {
       emit(
         state.copyWith(
@@ -176,9 +180,9 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
     Emitter<ThemeState> emit,
   ) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_themeModeKey, event.themeMode.toString());
       await prefs.setString(_typographyFontKey, event.typography.toString());
+      TypographyFactory.clearCache();
 
       final newState = state.copyWith(
         themeMode: event.themeMode,
@@ -186,8 +190,14 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         status: ThemeStatus.loaded,
       );
 
-      final themeData = newState.createThemeData();
-      emit(newState.copyWith(themeData: themeData));
+      emit(
+        newState.copyWith(
+          lightThemeData: newState.createThemeData(
+            brightness: Brightness.light,
+          ),
+          darkThemeData: newState.createThemeData(brightness: Brightness.dark),
+        ),
+      );
     } catch (e) {
       emit(
         state.copyWith(
@@ -201,18 +211,21 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
   // Handler for ThemeReset event
   Future<void> _onThemeReset(ThemeReset event, Emitter<ThemeState> emit) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_themeModeKey);
       await prefs.remove(_typographyFontKey);
       await prefs.remove(_fontSizeScaleFactorKey);
+      TypographyFactory.clearCache();
 
       const defaultState = ThemeState();
-      final themeData = defaultState.createThemeData();
-
       emit(
-        const ThemeState(
-          status: ThemeStatus.loaded,
-        ).copyWith(themeData: themeData),
+        const ThemeState(status: ThemeStatus.loaded).copyWith(
+          lightThemeData: defaultState.createThemeData(
+            brightness: Brightness.light,
+          ),
+          darkThemeData: defaultState.createThemeData(
+            brightness: Brightness.dark,
+          ),
+        ),
       );
     } catch (e) {
       emit(
