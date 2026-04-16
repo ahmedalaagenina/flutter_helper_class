@@ -1,4 +1,5 @@
-import 'package:idara_esign/core/networking/error/app_failure.dart';
+
+import '../networking.dart';
 
 sealed class AppException implements Exception {
   final String message;

@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_esign/core/constants/storage_keys.dart';
-import 'package:idara_esign/core/networking/networking.dart';
-import 'package:idara_esign/di/injection_container.dart';
-import 'package:idara_esign/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:idara_driver/core/local_storage/storage_keys.dart';
+import 'package:idara_driver/core/networking/networking.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthInterceptor extends QueuedInterceptor {
@@ -166,19 +164,20 @@ class AuthInterceptor extends QueuedInterceptor {
 
   bool _requiresToken(RequestOptions options) {
     final path = options.path;
-    return !(path.contains(ApiConstant.login) ||
-        path.contains(ApiConstant.register));
+    return !path.contains(ApiConstant.requestOtp) &&
+        !path.contains(ApiConstant.verifyOtp) &&
+        !path.contains(ApiConstant.resendOtp);
   }
 
   bool _shouldAttemptRefreshOn401(RequestOptions options) {
     if (options.extra['_isRetryAfterRefresh'] == true) return false;
 
     final path = options.path;
-    if (path.contains(ApiConstant.login) ||
-        path.contains(ApiConstant.register) ||
-        path.contains(ApiConstant.revokeAllTokens) ||
-        path.contains('logout') ||
-        path.contains('revoke')) {
+    if (path.contains(ApiConstant.requestOtp) ||
+        path.contains(ApiConstant.verifyOtp) ||
+        path.contains(ApiConstant.resendOtp) ||
+        path.contains(ApiConstant.logout) ||
+        path.contains(ApiConstant.refreshToken)) {
       return false;
     }
     return true;
@@ -190,7 +189,7 @@ class AuthInterceptor extends QueuedInterceptor {
 
     try {
       debugPrint('🔌 AuthInterceptor: Triggering forced logout');
-      getIt<AdminSessionBloc>().add(const AdminSessionLogoutRequested());
+      // getIt<AuthBloc>().add(const LogoutEvent());
     } catch (e) {
       debugPrint('Failed to trigger logout from interceptor: $e');
     }

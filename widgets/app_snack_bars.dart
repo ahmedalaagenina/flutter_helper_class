@@ -49,6 +49,8 @@ class AppSnackBars {
     BuildContext? context,
     String? actionLabel,
     VoidCallback? onAction,
+    SnackBarBehavior? behavior,
+    double? elevation,
   }) {
     final effectiveMessenger = _getMessenger(context);
     if (effectiveMessenger == null) return;
@@ -63,6 +65,8 @@ class AppSnackBars {
       icon: Icons.check_circle_outline,
       actionLabel: actionLabel,
       onAction: onAction,
+      behavior: behavior,
+      elevation: elevation,
     );
   }
 
@@ -71,6 +75,8 @@ class AppSnackBars {
     BuildContext? context,
     String? actionLabel,
     VoidCallback? onAction,
+    SnackBarBehavior? behavior,
+    double? elevation,
   }) {
     final effectiveMessenger = _getMessenger(context);
     if (effectiveMessenger == null) return;
@@ -85,6 +91,8 @@ class AppSnackBars {
       icon: Icons.error_outline,
       actionLabel: actionLabel,
       onAction: onAction,
+      behavior: behavior,
+      elevation: elevation,
     );
   }
 
@@ -93,6 +101,8 @@ class AppSnackBars {
     BuildContext? context,
     String? actionLabel,
     VoidCallback? onAction,
+    SnackBarBehavior? behavior,
+    double? elevation,
   }) {
     final effectiveMessenger = _getMessenger(context);
     if (effectiveMessenger == null) return;
@@ -107,6 +117,8 @@ class AppSnackBars {
       icon: Icons.warning_amber_rounded,
       actionLabel: actionLabel,
       onAction: onAction,
+      behavior: behavior,
+      elevation: elevation,
     );
   }
 
@@ -115,6 +127,8 @@ class AppSnackBars {
     BuildContext? context,
     String? actionLabel,
     VoidCallback? onAction,
+    SnackBarBehavior? behavior,
+    double? elevation,
   }) {
     final effectiveMessenger = _getMessenger(context);
     if (effectiveMessenger == null) return;
@@ -129,6 +143,8 @@ class AppSnackBars {
       icon: Icons.info_outline,
       actionLabel: actionLabel,
       onAction: onAction,
+      behavior: behavior,
+      elevation: elevation,
     );
   }
 
@@ -139,6 +155,8 @@ class AppSnackBars {
     IconData icon = Icons.notifications_none,
     String? actionLabel,
     VoidCallback? onAction,
+    SnackBarBehavior? behavior,
+    double? elevation,
   }) {
     final effectiveMessenger = _getMessenger(context);
     if (effectiveMessenger == null) return;
@@ -150,6 +168,8 @@ class AppSnackBars {
       icon: icon,
       actionLabel: actionLabel,
       onAction: onAction,
+      behavior: behavior,
+      elevation: elevation,
     );
   }
 
@@ -175,6 +195,8 @@ class AppSnackBars {
     String? actionLabel,
     VoidCallback? onAction,
     Duration duration = const Duration(seconds: 3),
+    SnackBarBehavior? behavior,
+    double? elevation,
   }) {
     final bg = tone.bg;
     final fg = tone.fg;
@@ -185,8 +207,8 @@ class AppSnackBars {
 
         messenger.showSnackBar(
           SnackBar(
-            behavior: SnackBarBehavior.floating,
-            elevation: 0,
+            behavior: behavior,
+            elevation: elevation,
             duration: duration,
             backgroundColor: Colors.transparent,
             padding: EdgeInsets.zero,

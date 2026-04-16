@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_esign/core/networking/networking.dart';
-import 'package:idara_esign/core/services/logger_service.dart';
-import 'package:idara_esign/generated/l10n.dart';
+import 'package:idara_driver/core/networking/networking.dart';
+import 'package:idara_driver/generated/l10n.dart';
+import 'package:idara_driver/core/util/app_log.dart';
 
 class ApiFailureHandler {
   ApiFailureHandler._();
@@ -55,8 +55,6 @@ class ApiFailureHandler {
         return NoInternetException(S.current.noInternetConnection);
       case DioExceptionType.unknown:
         return UnknownException(error.message ?? S.current.unexpectedDioError);
-      default:
-        return UnknownException(S.current.unexpectedError);
     }
   }
 

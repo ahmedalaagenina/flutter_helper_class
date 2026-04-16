@@ -26,6 +26,14 @@ class CacheFailure extends AppFailure {
   const CacheFailure(super.message, [super.code, super.data]);
 }
 
+class NoCachedDataFailure extends AppFailure {
+  const NoCachedDataFailure([
+    super.message = 'No cached data found',
+    super.code,
+    super.data,
+  ]);
+}
+
 class UnknownFailure extends AppFailure {
   const UnknownFailure([
     super.message = "An unknown error occurred.",

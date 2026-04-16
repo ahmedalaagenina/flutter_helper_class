@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:kassemha/core/networking/networking.dart';
+import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
+import 'package:idara_driver/core/networking/networking.dart';
 
 /// Abstract class defining the interface for API services
 
@@ -12,6 +13,7 @@ abstract class ApiService {
     CancelToken? cancelToken,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   });
 
   // POST method
@@ -24,6 +26,7 @@ abstract class ApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   });
 
   // PUT method
@@ -36,6 +39,7 @@ abstract class ApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   });
 
   // DELETE method
@@ -46,6 +50,7 @@ abstract class ApiService {
     Options? options,
     CancelToken? cancelToken,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   });
 
   // PATCH method
@@ -58,6 +63,7 @@ abstract class ApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   });
 
   // HEAD method

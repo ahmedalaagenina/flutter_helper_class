@@ -1,0 +1,30 @@
+{
+  "android": {
+    "version": {
+      "minimum": "1.0.0",
+      "latest": "1.1.0"
+    },
+    "download_url": "https://play.google.com/store/apps/details?id=com.example.app",
+    "status": {
+      "active": false,
+      "message": {
+        "en": "App update information is temporarily unavailable.",
+        "ar": "معلومات تحديث التطبيق غير متاحة مؤقتاً."
+      }
+    }
+  },
+  "iOS": {
+    "version": {
+      "minimum": "2.0.0",
+      "latest": "2.2.0"
+    },
+    "download_url": "https://apps.apple.com/app/id123456789",
+    "status": {
+      "active": true,
+      "message": {
+        "en": "App update information is temporarily unavailable.",
+        "ar": "معلومات تحديث التطبيق غير متاحة مؤقتاً."
+      }
+    }
+  }
+}

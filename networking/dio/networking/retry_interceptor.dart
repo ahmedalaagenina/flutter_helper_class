@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_esign/core/networking/networking.dart';
+import 'package:idara_driver/core/networking/networking.dart';
 
 class RetryInterceptor extends Interceptor {
   final Dio dio;

@@ -1,9 +1,9 @@
-import 'package:idara_esign/core/constants/storage_keys.dart';
-import 'package:idara_esign/core/security/secure_storage.dart';
+import 'package:idara_driver/core/local_storage/secure_storage.dart';
+import 'package:idara_driver/core/local_storage/storage_keys.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 abstract class AuthTokenStore {
-  Future<void> saveToken(String token, {required bool persist});
+  Future<void> saveToken(String token, {bool persist = true});
   Future<String?> getToken();
   Future<bool> hasSession();
   Future<bool> isPersistentSession();
@@ -23,7 +23,7 @@ class AuthTokenStoreImpl implements AuthTokenStore {
   String? _volatileToken;
 
   @override
-  Future<void> saveToken(String token, {required bool persist}) async {
+  Future<void> saveToken(String token, {bool persist = true}) async {
     _volatileToken = token;
 
     if (persist) {

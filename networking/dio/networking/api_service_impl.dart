@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter/foundation.dart';
-import 'package:kassemha/core/networking/networking.dart';
+import 'package:idara_driver/core/networking/networking.dart';
 
 class ApiServiceImpl implements ApiService {
   final Dio _dio;
@@ -23,8 +24,9 @@ class ApiServiceImpl implements ApiService {
     CancelToken? cancelToken,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   }) async {
-    options = _mergeRetryOptions(options, retryOptions);
+    options = await _buildOptions(options, retryOptions, cacheOptions);
     final response = await _dio.get<T>(
       path,
       queryParameters: queryParameters,
@@ -46,8 +48,9 @@ class ApiServiceImpl implements ApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   }) async {
-    options = _mergeRetryOptions(options, retryOptions);
+    options = await _buildOptions(options, retryOptions, cacheOptions);
     final response = await _dio.post<T>(
       path,
       data: data,
@@ -71,8 +74,9 @@ class ApiServiceImpl implements ApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   }) async {
-    options = _mergeRetryOptions(options, retryOptions);
+    options = await _buildOptions(options, retryOptions, cacheOptions);
     final response = await _dio.put<T>(
       path,
       data: data,
@@ -94,8 +98,9 @@ class ApiServiceImpl implements ApiService {
     Options? options,
     CancelToken? cancelToken,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   }) async {
-    options = _mergeRetryOptions(options, retryOptions);
+    options = await _buildOptions(options, retryOptions, cacheOptions);
     final response = await _dio.delete<T>(
       path,
       data: data,
@@ -117,8 +122,9 @@ class ApiServiceImpl implements ApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   }) async {
-    options = _mergeRetryOptions(options, retryOptions);
+    options = await _buildOptions(options, retryOptions, cacheOptions);
     final response = await _dio.patch<T>(
       path,
       data: data,
@@ -312,6 +318,29 @@ class ApiServiceImpl implements ApiService {
     } else {
       throw ArgumentError('Either filePath or bytes must be provided');
     }
+  }
+
+  /// Helper method to build Options with retry and cache options.
+  ///
+  /// When [cacheOptions] is null, the global [DioCacheInterceptor] defaults
+  /// are used. When provided, the per-request cache options override them.
+  Future<Options> _buildOptions(
+    Options? options,
+    RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
+  ) async {
+    var merged = _mergeRetryOptions(options, retryOptions);
+
+    if (cacheOptions != null) {
+      final cacheAsOptions = cacheOptions.toOptions();
+      merged = cacheAsOptions.copyWith(
+        method: merged.method,
+        headers: merged.headers,
+        extra: {...?merged.extra, ...?cacheAsOptions.extra},
+      );
+    }
+
+    return merged;
   }
 
   // Helper method to merge retry options

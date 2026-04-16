@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:typo_color_them/theme/theme.dart';
+
+import 'theme.dart';
 
 /// Theme data generator
 class AppTheme {
@@ -11,7 +12,7 @@ class AppTheme {
   const AppTheme({
     required this.typography,
     required this.colors,
-    this.elevation = 2.0,
+    this.elevation = 0, // in material 3 elevation is best to be 0
     this.useMaterial3 = true,
   });
 
@@ -26,10 +27,9 @@ class AppTheme {
         typography,
         fontSizeScaleFactor: fontSizeScaleFactor ?? 1.0,
       ),
-      colors:
-          brightness == Brightness.dark
-              ? const DarkColors()
-              : const LightColors(),
+      colors: brightness == Brightness.dark
+          ? const DarkColors()
+          : const LightColors(),
     );
   }
 
@@ -54,34 +54,60 @@ class AppTheme {
 
   /// Create ThemeData based on provided typography and colors
   ThemeData build() {
-    final brightness =
-        colors is DarkColors ? Brightness.dark : Brightness.light;
     final colorScheme = colors.toColorScheme();
 
     return ThemeData(
       useMaterial3: useMaterial3,
-      fontFamily: typography.fontFamily,
-      brightness: brightness,
+      brightness: colorScheme.brightness,
       colorScheme: colorScheme,
+      scaffoldBackgroundColor: colorScheme.surface,
 
+      fontFamily: typography.fontFamily,
+      fontFamilyFallback: typography.fontFamilyFallback,
       // Apply color scheme to various components
       appBarTheme: AppBarTheme(
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
         elevation: elevation,
+        scrolledUnderElevation: 0, // to prevent changing color when scrolling
       ),
-      cardTheme: CardTheme(
-        elevation: elevation,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+
+      cardTheme: CardThemeData(
+        color: colorScheme.surfaceContainer,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: colors.outline.withValues(alpha: 0.5)),
+        ),
       ),
+
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
           elevation: elevation,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
-
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: colorScheme.surfaceContainer,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.outline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
+        ),
+      ),
       // Extensions
       extensions: [AppThemeExtension(typography: typography, colors: colors)],
     );

@@ -1,149 +1,280 @@
 import 'package:flutter/material.dart';
-import 'package:typo_color_them/theme/colors/colors.dart';
+
+import '../theme.dart';
 
 class LightColors extends BaseColors {
   const LightColors();
 
-  // Primary colors
-  @override
-  Color get primary => Colors.blue;
+  // ---------------------------------------------------------------------------
+  // Brand core
+  // ---------------------------------------------------------------------------
 
+  /// Main light theme brand color.
+  /// Change this first when the app brand changes.
   @override
-  Color get primaryDark => Colors.blue.shade700;
+  Color get primary => const Color(0xFF007EC3);
 
+  /// Darker manual variation of the brand color.
   @override
-  Color get primaryLight => Colors.blue.shade300;
+  Color get primaryDark => primary.darker(0.18);
 
+  /// Lighter manual variation of the brand color.
+  @override
+  Color get primaryLight => primary.lighter(0.22);
+
+  /// Text/icons shown on primary surfaces.
   @override
   Color get onPrimary => Colors.white;
 
-  // Secondary colors
+  /// Secondary accent color.
+  ///
+  /// Scenario 2 (primary + secondary):
+  /// - keep this and set the real secondary brand color.
+  ///
+  /// Scenario 1 (primary only):
+  /// - you can ignore overriding it in toColorScheme()
+  /// - and let fromSeed generate it automatically.
   @override
-  Color get secondary => Colors.teal;
+  Color get secondary => const Color(0xFF00A8A8);
 
+  /// Darker variation of secondary.
   @override
-  Color get secondaryDark => Colors.teal.shade700;
+  Color get secondaryDark => secondary.darker(0.16);
 
+  /// Lighter variation of secondary.
   @override
-  Color get secondaryLight => Colors.teal.shade300;
+  Color get secondaryLight => secondary.lighter(0.18);
 
+  /// Text/icons shown on secondary surfaces.
   @override
   Color get onSecondary => Colors.white;
 
-  // Background colors
-  @override
-  Color get background => Colors.white;
+  // ---------------------------------------------------------------------------
+  // Surface hierarchy
+  // ---------------------------------------------------------------------------
 
+  /// Main app background in light mode.
   @override
-  Color get surface => Colors.grey.shade50;
+  Color get surface => const Color(0xFFFFFFFF);
 
+  /// Main text color on light surfaces.
   @override
-  Color get onBackground => Colors.black87;
+  Color get onSurface => const Color(0xFF111827);
 
+  /// Standard container color for cards and inputs.
   @override
-  Color get onSurface => Colors.black87;
+  Color get surfaceContainer => const Color(0xFFF9FAFB);
 
+  /// Stronger surface layer for more prominent containers.
+  @override
+  Color get surfaceVariant => const Color(0xFFF3F4F6);
+
+  /// Secondary text/icon color used on surface layers.
+  @override
+  Color get onSurfaceVariant => const Color(0xFF4B5563);
+
+  // ---------------------------------------------------------------------------
   // Semantic colors
-  @override
-  Color get error => Colors.red.shade700;
+  // ---------------------------------------------------------------------------
 
+  /// Error / destructive color.
   @override
-  Color get success => Colors.green.shade600;
+  Color get error => const Color(0xFFDC2626);
 
+  /// Success / positive state color.
   @override
-  Color get warning => Colors.amber.shade700;
+  Color get success => const Color(0xFF16A34A);
 
+  /// Warning / caution color.
   @override
-  Color get info => Colors.blue.shade600;
+  Color get warning => const Color(0xFFF59E0B);
 
+  /// Informational state color.
+  @override
+  Color get info => const Color(0xFF0284C7);
+
+  /// Text/icon color shown on top of error color.
   @override
   Color get onError => Colors.white;
 
+  /// Text/icon color shown on top of success color.
   @override
   Color get onSuccess => Colors.white;
 
+  /// Text/icon color shown on top of warning color.
   @override
   Color get onWarning => Colors.black;
 
+  /// Text/icon color shown on top of info color.
   @override
   Color get onInfo => Colors.white;
 
-  // Surface variants (Material 3)
-  @override
-  Color get surfaceVariant => Colors.grey.shade100;
+  // ---------------------------------------------------------------------------
+  // Extended colors
+  // ---------------------------------------------------------------------------
 
+  /// Strong border color.
   @override
-  Color get onSurfaceVariant => Colors.grey.shade700;
+  Color get outline => const Color(0xFFE5E7EB);
 
-  // Extended colors (Material 3)
+  /// Softer border/divider color.
   @override
-  Color get outline => Colors.grey.shade400;
+  Color get outlineVariant => const Color(0xFF9CA3AF);
 
+  /// Primary-like color displayed on inverse surfaces.
   @override
-  Color get outlineVariant => Colors.grey.shade300;
+  Color get inversePrimary => primaryLight;
 
+  /// Strong inverse surface, useful for snackbars or dark overlays in light mode.
   @override
-  Color get inversePrimary => Colors.blue.shade200;
+  Color get inverseSurface => const Color(0xFF111827);
 
-  @override
-  Color get inverseSurface => Colors.grey.shade900;
-
+  /// Text/icon color shown on inverse surfaces.
   @override
   Color get onInverseSurface => Colors.white;
 
+  /// Overlay color used behind dialogs, sheets, and drawers.
   @override
-  Color get scrim => Colors.black.withOpacity(0.2);
-
+  Color get scrim => Colors.black.withValues(alpha: 0.20);
   @override
   ColorScheme toColorScheme() {
-    return ColorScheme(
+    // -------------------------------------------------------------------------
+    // STEP 1:
+    // Let Material 3 build a complete tonal palette from the primary color.
+    //
+    // Why?
+    // - Better harmony between generated roles
+    // - Better future compatibility with Material widgets
+    // - Better automatic contrast defaults
+    // -------------------------------------------------------------------------
+    final base = ColorScheme.fromSeed(
+      seedColor: primary,
       brightness: Brightness.light,
+    );
+
+    // -------------------------------------------------------------------------
+    // STEP 2:
+    // Override only the colors we intentionally want to lock.
+    //
+    // Why lock primary and onPrimary?
+    // - fromSeed may slightly shift the color
+    // - we want exact brand consistency
+    //
+    // Why keep generated roles?
+    // - Material can generate many roles better than manual hardcoding
+    // -------------------------------------------------------------------------
+    return base.copyWith(
+      // -----------------------------------------------------------------------
+      // Core brand colors
+      // -----------------------------------------------------------------------
+
+      // Main brand color used for major interactive elements.
       primary: primary,
+
+      // Text/icon color placed on top of the primary color.
       onPrimary: onPrimary,
+
+      // A lighter tonal version of primary for larger highlighted containers.
+      // In light mode, this is often used for subtle brand-tinted backgrounds.
       primaryContainer: primaryLight,
-      onPrimaryContainer: Colors.black87,
+
+      // Text/icon color used on top of primaryContainer.
+      // Should remain darker in light mode for readability.
+      onPrimaryContainer: primaryDark,
+
+      // Secondary brand color used for supporting actions and accents.
+      //
+      // Scenario 1 (primary only):
+      // - you may remove this line and let Material generate secondary.
       secondary: secondary,
+
+      // Text/icon color placed on top of the secondary color.
       onSecondary: onSecondary,
+
+      // Lighter tonal variation of secondary for soft accent containers.
       secondaryContainer: secondaryLight,
-      onSecondaryContainer: Colors.black87,
+
+      // Text/icon color used on top of secondaryContainer.
+      onSecondaryContainer: secondaryDark,
+
+      // -----------------------------------------------------------------------
+      // Tertiary / informational mapping
+      // -----------------------------------------------------------------------
+
+      // Third accent role. Here we map it to the info color.
       tertiary: info,
+
+      // Text/icon color displayed on tertiary color.
       onTertiary: onInfo,
-      tertiaryContainer: info.withOpacity(0.1),
-      onTertiaryContainer: info.darker(),
+
+      // Soft background for informational sections.
+      tertiaryContainer: info.withValues(alpha: 0.10),
+      // Text/icon color on tertiaryContainer.
+      onTertiaryContainer: info.darker(0.20),
+
+      // -----------------------------------------------------------------------
+      // Error colors
+      // -----------------------------------------------------------------------
+
+      // Error color for invalid/destructive states.
       error: error,
+
+      // Text/icon color displayed on the error color.
       onError: onError,
-      errorContainer: error.withOpacity(0.1),
-      onErrorContainer: error.darker(),
+
+      // Soft background for error states.
+      errorContainer: error.withValues(alpha: 0.10),
+      // Text/icon color displayed on the errorContainer.
+      onErrorContainer: error.darker(0.18),
+
+      // -----------------------------------------------------------------------
+      // Surface hierarchy
+      // -----------------------------------------------------------------------
+
+      // Main application surface/background.
       surface: surface,
+
+      // Main text/icon color on the surface.
       onSurface: onSurface,
+
+      // Standard container surface for cards, sheets, inputs, etc.
+      surfaceContainer: surfaceContainer,
+
+      // More prominent container surface.
+      // Often useful for stronger cards, highlighted blocks, or bottom sheets.
       surfaceContainerHighest: surfaceVariant,
+
+      // Secondary text/icon color used on surfaces.
       onSurfaceVariant: onSurfaceVariant,
+
+      // -----------------------------------------------------------------------
+      // Borders and inverse roles
+      // -----------------------------------------------------------------------
+
+      // Strong border color for outlined components and active edges.
       outline: outline,
+
+      // Softer outline color for subtle dividers and inactive borders.
       outlineVariant: outlineVariant,
+
+      // Inverse surface used where strong contrast against the normal surface is needed.
       inverseSurface: inverseSurface,
+
+      // Text/icon color displayed on inverseSurface.
       onInverseSurface: onInverseSurface,
+
+      // Brand-aware primary color used on inverseSurface.
       inversePrimary: inversePrimary,
+
+      // -----------------------------------------------------------------------
+      // Shadow / overlays
+      // -----------------------------------------------------------------------
+
+      // Shadow color used for elevation effects.
       shadow: scrim,
+
+      // Overlay color used behind dialogs, sheets, drawers, and modals.
       scrim: scrim,
     );
-  }
-}
-
-// Extension to provide additional color utilities
-extension ColorExtension on Color {
-  Color darker([double amount = 0.1]) {
-    assert(amount >= 0 && amount <= 1);
-    final hsl = HSLColor.fromColor(this);
-    final hslDark = hsl.withLightness((hsl.lightness - amount).clamp(0.0, 1.0));
-    return hslDark.toColor();
-  }
-
-  Color lighter([double amount = 0.1]) {
-    assert(amount >= 0 && amount <= 1);
-    final hsl = HSLColor.fromColor(this);
-    final hslLight = hsl.withLightness(
-      (hsl.lightness + amount).clamp(0.0, 1.0),
-    );
-    return hslLight.toColor();
   }
 }
