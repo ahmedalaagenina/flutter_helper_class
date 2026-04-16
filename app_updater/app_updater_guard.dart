@@ -1,8 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
-import 'app_updater_core.dart';
-import 'app_updater_service.dart';
+import 'app_updater.dart';
 
 typedef MaintenanceBuilder =
     Widget Function(BuildContext context, String? message);

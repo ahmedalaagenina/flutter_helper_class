@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-import 'app_updater_core.dart';
+import 'app_updater.dart';
 
 typedef OnAppUpdaterResult = void Function(AppUpdaterResult result);
 typedef OnAppUpdaterError = void Function(Object error, StackTrace? stack);
