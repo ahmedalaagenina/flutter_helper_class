@@ -3,11 +3,6 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:idara_driver/core/networking/networking.dart';
-import 'package:idara_driver/core/networking/offline_sync/offline_sync_config.dart';
-import 'package:idara_driver/core/networking/offline_sync/offline_sync_interceptor.dart';
-import 'package:idara_driver/core/networking/offline_sync/queued_request.dart';
-import 'package:idara_driver/core/networking/offline_sync/sync_event.dart';
-import 'package:idara_driver/core/networking/offline_sync/sync_queue.dart';
 
 /// Monitors connectivity and processes the offline sync queue
 /// when the device comes back online.

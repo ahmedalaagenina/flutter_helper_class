@@ -34,6 +34,17 @@ class NoCachedDataFailure extends AppFailure {
   ]);
 }
 
+// Inside your failures file alongside NetworkFailure, etc.
+class OfflineQueuedFailure extends AppFailure {
+  final String? syncId;
+  const OfflineQueuedFailure({
+    this.syncId,
+    String message = 'You are offline. Request queued and will sync automatically.',
+    int? code,
+    Map<String, dynamic>? data,
+  }) : super(message, code, data);
+}
+
 class UnknownFailure extends AppFailure {
   const UnknownFailure([
     super.message = "An unknown error occurred.",

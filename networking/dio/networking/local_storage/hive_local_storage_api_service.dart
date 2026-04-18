@@ -18,7 +18,13 @@ class HiveLocalStorageApiService implements LocalStorageApiService {
   Map<String, dynamic>? read(String key) {
     final result = box.get(key);
     if (result == null) return null;
-    return Map<String, dynamic>.from(result);
+
+    return _normalizeMap(result);
+  }
+
+  @override
+  bool contains(String key) {
+    return box.containsKey(key);
   }
 
   @override
@@ -27,7 +33,27 @@ class HiveLocalStorageApiService implements LocalStorageApiService {
   }
 
   @override
-  bool contains(String key) {
-    return box.containsKey(key);
+  Future<void> clearAll() async {
+   await Hive.deleteFromDisk();
+  }
+
+  Map<String, dynamic> _normalizeMap(dynamic value) {
+    return Map<String, dynamic>.fromEntries(
+      (value as Map).entries.map(
+        (entry) => MapEntry(entry.key.toString(), _normalizeValue(entry.value)),
+      ),
+    );
+  }
+
+  dynamic _normalizeValue(dynamic value) {
+    if (value is Map) {
+      return _normalizeMap(value);
+    }
+
+    if (value is List) {
+      return value.map(_normalizeValue).toList(growable: false);
+    }
+
+    return value;
   }
 }

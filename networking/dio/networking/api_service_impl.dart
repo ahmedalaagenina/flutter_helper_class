@@ -3,7 +3,7 @@ import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter/foundation.dart';
 import 'package:idara_driver/core/networking/networking.dart';
 
-class ApiServiceImpl implements ApiService {
+class ApiServiceImpl implements IApiService {
   final Dio _dio;
 
   ApiServiceImpl(this._dio);

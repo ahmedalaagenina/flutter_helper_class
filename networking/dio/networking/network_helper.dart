@@ -5,19 +5,11 @@ import 'package:dio/io.dart' as ad;
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter/foundation.dart';
 import 'package:idara_driver/core/networking/networking.dart';
-import 'package:idara_driver/core/networking/offline_sync/offline_sync.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Future<void> _registerNetworkStack() async {
-//// call in local storage get it
-//   await Hive.initFlutter();
-//     final box = await Hive.openBox('app_box');
-//     getIt.registerLazySingleton<Box>(() => box);
-//   getIt.registerLazySingleton<LocalStorageApiService>(
-//     () => HiveLocalStorageApiService(getIt()),
-//   );
-/// this cash about api response
+//   // await Hive.initFlutter();
 //   await CacheService.instance.init();
 
 //   // Initialize and register SyncQueue
@@ -96,7 +88,6 @@ class NetworkHelper {
         ),
     ]);
 
-    // Add interceptors in order
     dio.interceptors.addAll([
       AuthInterceptor(
         prefs: _prefs,
@@ -104,25 +95,33 @@ class NetworkHelper {
         dio: dio,
         refreshDio: refreshDio,
       ),
+
+      // ✅ Cache BEFORE offline sync — on network error, serves stale cache
+      DioCacheInterceptor(options: CacheService.instance.defaultOptions),
+
+      // ✅ Retry BEFORE offline sync — exhaust retries first
       RetryInterceptor(
         dio: dio,
         maxRetries: defaultMaxRetries,
         initialDelay: defaultRetryDelay,
       ),
+
+      // ✅ Only queues if cache also missed AND all retries failed
       if (_syncQueue != null)
         OfflineSyncInterceptor(
           queue: _syncQueue,
           config: OfflineSyncConfig(
+            returnSyntheticResponse: false,
+            defaultOfflineMessage:
+                'You are offline. Request queued and will sync automatically.',
             excludedPaths: [
-              ApiConstant.requestOtp,
+              ApiConstant.login,
               ApiConstant.verifyOtp,
-              ApiConstant.resendOtp,
               ApiConstant.logout,
               ApiConstant.refreshToken,
             ],
           ),
         ),
-      DioCacheInterceptor(options: CacheService.instance.defaultOptions),
 
       if (kDebugMode)
         PrettyDioLogger(

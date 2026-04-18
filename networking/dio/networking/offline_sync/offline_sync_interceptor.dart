@@ -42,6 +42,8 @@ class OfflineSyncInterceptor extends Interceptor {
 
   /// Extra key used to mark replay requests to prevent re-queuing.
   static const replayMarker = '_isOfflineReplay';
+  static const syncIdKey = '_syncId';
+  static const offlineMessageKey = '_offlineQueuedMessage';
 
   OfflineSyncInterceptor({
     required SyncQueue queue,
@@ -57,6 +59,12 @@ class OfflineSyncInterceptor extends Interceptor {
     if (options.extra[replayMarker] == true) {
       return handler.next(err);
     }
+
+    // Prevent double queueing if the error bubbles up through nested interceptor chains
+    if (options.extra['_hasBeenOfflineQueued'] == true) {
+      return handler.next(err);
+    }
+    options.extra['_hasBeenOfflineQueued'] = true;
 
     // Only queue syncable methods (POST, PUT, DELETE, PATCH)
     if (!_config.isSyncable(options.method)) {
@@ -85,6 +93,8 @@ class OfflineSyncInterceptor extends Interceptor {
     // Queue the request
     try {
       final syncId = _uuid.v4();
+      options.extra[syncIdKey] = syncId;
+      options.extra[offlineMessageKey] = _config.defaultOfflineMessage;
       final pendingRequest = QueuedRequest(
         id: syncId,
         method: options.method,

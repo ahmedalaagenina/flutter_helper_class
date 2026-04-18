@@ -77,7 +77,9 @@ class _AppUpdaterGuardState extends State<AppUpdaterGuard> {
   @override
   Widget build(BuildContext context) {
     if (!_service.isInitialized) {
-      return widget.loadingBuilder?.call(context) ?? const _DefaultLoading();
+      // Show the child (router content) while initialising so the splash
+      // screen remains visible instead of flashing a blank loading scaffold.
+      return widget.loadingBuilder?.call(context) ?? widget.child;
     }
     if (_service.isInactive) {
       final message = _service.maintenanceMessage(widget.languageCode);
@@ -116,15 +118,6 @@ class _AppUpdaterGuardState extends State<AppUpdaterGuard> {
     }
 
     return widget.child;
-  }
-}
-
-class _DefaultLoading extends StatelessWidget {
-  const _DefaultLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 

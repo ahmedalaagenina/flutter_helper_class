@@ -71,14 +71,25 @@ class OfflineSyncConfig {
   /// If `false`, the original `DioException` is passed through,
   /// and the caller must handle the offline error.
   ///
+  /// Important:
+  /// When `returnSyntheticResponse` is `false`, synthetic response payloads
+  /// are not returned to the caller, so [syntheticResponseBuilder] and
+  /// [buildSyntheticResponse] are not part of the normal UI flow.
+  ///
+  /// In that mode, UI messaging should come from the mapped failure
+  /// produced by the caller layer (for example `OfflineQueuedFailure`).
+  /// [defaultOfflineMessage] can still be reused by that layer as the
+  /// fallback user-facing queued message.
+  ///
   /// Default: `true`
   final bool returnSyntheticResponse;
 
-  /// Default message returned in the synthetic response when a 
-  /// request is queued offline.
-  /// 
-  /// Only used if [syntheticResponseBuilder] is null.
-  /// 
+  /// Default user-facing message for a request queued offline.
+  ///
+  /// Used as:
+  /// - the fallback `message` field in synthetic-response mode
+  /// - the fallback mapped failure message in pass-through mode
+  ///
   /// Default: `'Saved offline. Will sync when connected.'`
   final String defaultOfflineMessage;
 
@@ -108,7 +119,8 @@ class OfflineSyncConfig {
     this.processingDelay = const Duration(seconds: 1),
     this.maxBodySize = 5 * 1024 * 1024, // 5 MB
     this.returnSyntheticResponse = true,
-    this.defaultOfflineMessage = 'Saved offline. Will sync when connected.',
+    this.defaultOfflineMessage =
+        'You are offline. Request queued and will sync automatically.',
     this.syntheticResponseBuilder,
   });
 

@@ -34,7 +34,7 @@ sealed class AsyncResult<T> extends Equatable {
   ///
   /// AsyncResult.success(data)
   ///
-  const factory AsyncResult.success(T data) = AsyncResultSuccess<T>;
+  const factory AsyncResult.success([T? data]) = AsyncResultSuccess<T>;
 
   ///
   /// AsyncResult.failure(error)
@@ -110,7 +110,7 @@ sealed class AsyncResult<T> extends Equatable {
   R when<R>({
     required R Function() initial,
     required R Function(T? previousData) loading,
-    required R Function(T data) success,
+    required R Function(T? data) success,
     required R Function(AppFailure error, T? previousData) failure,
   }) {
     return switch (this) {
@@ -137,7 +137,7 @@ sealed class AsyncResult<T> extends Equatable {
   R maybeWhen<R>({
     R Function()? initial,
     R Function(T? previousData)? loading,
-    R Function(T data)? success,
+    R Function(T? data)? success,
     R Function(AppFailure error, T? previousData)? failure,
     required R Function() orElse,
   }) {
@@ -167,7 +167,7 @@ sealed class AsyncResult<T> extends Equatable {
           previousData: previousData != null ? mapper(previousData) : null,
         ),
       AsyncResultSuccess<T>(data: final data) => AsyncResult<R>.success(
-        mapper(data),
+        data != null ? mapper(data) : null,
       ),
       AsyncResultFailure<T>(
         error: final error,
@@ -199,9 +199,9 @@ final class AsyncResultLoading<T> extends AsyncResult<T> {
 }
 
 final class AsyncResultSuccess<T> extends AsyncResult<T> {
-  final T data;
+  final T? data;
 
-  const AsyncResultSuccess(this.data);
+  const AsyncResultSuccess([this.data]);
 
   @override
   List<Object?> get props => [data];
@@ -299,7 +299,7 @@ class AsyncResultBuilder<T> extends StatelessWidget {
             : (loading?.call() ??
                   const Center(child: CircularProgressIndicator())),
 
-      AsyncResultSuccess(data: final data) => success(data),
+      AsyncResultSuccess(data: final data) => success(data as T),
 
       AsyncResultFailure(
         error: final error,

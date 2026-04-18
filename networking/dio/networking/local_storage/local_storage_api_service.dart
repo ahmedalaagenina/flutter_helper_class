@@ -6,4 +6,6 @@ abstract class LocalStorageApiService {
   Future<void> remove(String key);
 
   bool contains(String key);
+
+  Future<void> clearAll();
 }

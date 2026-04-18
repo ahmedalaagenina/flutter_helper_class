@@ -164,18 +164,16 @@ class AuthInterceptor extends QueuedInterceptor {
 
   bool _requiresToken(RequestOptions options) {
     final path = options.path;
-    return !path.contains(ApiConstant.requestOtp) &&
-        !path.contains(ApiConstant.verifyOtp) &&
-        !path.contains(ApiConstant.resendOtp);
+    return !path.contains(ApiConstant.login) &&
+        !path.contains(ApiConstant.verifyOtp);
   }
 
   bool _shouldAttemptRefreshOn401(RequestOptions options) {
     if (options.extra['_isRetryAfterRefresh'] == true) return false;
 
     final path = options.path;
-    if (path.contains(ApiConstant.requestOtp) ||
+    if (path.contains(ApiConstant.login) ||
         path.contains(ApiConstant.verifyOtp) ||
-        path.contains(ApiConstant.resendOtp) ||
         path.contains(ApiConstant.logout) ||
         path.contains(ApiConstant.refreshToken)) {
       return false;
