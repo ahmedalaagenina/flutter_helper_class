@@ -99,7 +99,7 @@ class NotificationHelper {
       onTapNotification(notificationAppLaunchDetails.notificationResponse!);
     }
     await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
+      settings: initializationSettings,
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
 
       /// on did receive notification response
@@ -135,10 +135,10 @@ class NotificationHelper {
   Future<void> showNotification({required RemoteMessage message}) async {
     var notificationDetails = await _notificationDetails(message);
     flutterLocalNotificationsPlugin.show(
-      message.notification!.hashCode,
-      message.notification!.title,
-      message.notification!.body,
-      notificationDetails,
+      id: message.notification!.hashCode,
+      title: message.notification!.title,
+      body: message.notification!.body,
+      notificationDetails: notificationDetails,
       payload: jsonEncode(
         message.data,
       ), // value that pass from notification to app
@@ -152,11 +152,11 @@ class NotificationHelper {
   }) async {
     var notificationDetails = await _notificationDetails(message);
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      message.notification!.hashCode,
-      message.notification!.title,
-      message.notification!.body,
-      tz.TZDateTime.from(scheduledDate, tz.local),
-      notificationDetails,
+      id: message.notification!.hashCode,
+      title: message.notification!.title,
+      body: message.notification!.body,
+      scheduledDate: tz.TZDateTime.from(scheduledDate, tz.local),
+      notificationDetails: notificationDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       payload: jsonEncode(message.data),
     );
@@ -187,10 +187,10 @@ class NotificationHelper {
     );
 
     await flutterLocalNotificationsPlugin.show(
-      id,
-      title,
-      body,
-      platformChannelSpecifics,
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: platformChannelSpecifics,
     );
   }
 
@@ -222,10 +222,10 @@ class NotificationHelper {
     );
 
     await flutterLocalNotificationsPlugin.show(
-      id,
-      title,
-      body,
-      platformChannelSpecifics,
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: platformChannelSpecifics,
     );
   }
 
@@ -251,10 +251,10 @@ class NotificationHelper {
       );
 
       await flutterLocalNotificationsPlugin.show(
-        i,
-        notifications[i].title,
-        notifications[i].body,
-        notificationDetails,
+        id: i,
+        title: notifications[i].title,
+        body: notifications[i].body,
+        notificationDetails: notificationDetails,
       );
     }
 
@@ -275,16 +275,16 @@ class NotificationHelper {
     );
 
     await flutterLocalNotificationsPlugin.show(
-      notifications.length,
-      'Group notification',
-      '${notifications.length} messages',
-      notificationDetails,
+      id: notifications.length,
+      title: 'Group notification',
+      body: '${notifications.length} messages',
+      notificationDetails: notificationDetails,
     );
   }
 
   /// Cancel a specific notification
   Future<void> cancelNotification(int id) async {
-    await flutterLocalNotificationsPlugin.cancel(id);
+    await flutterLocalNotificationsPlugin.cancel(id: id);
   }
 
   /// Cancel all notifications
