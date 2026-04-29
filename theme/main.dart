@@ -473,3 +473,135 @@ class _ThemeModeButton extends StatelessWidget {
     );
   }
 }
+
+// Go Router
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:idara_driver/config/locale/cubit/locale_cubit.dart';
+import 'package:idara_driver/config/router/route_configurations.dart';
+import 'package:idara_driver/config/theme/theme.dart';
+import 'package:idara_driver/core/app_updater/app_updater_guard.dart';
+import 'package:idara_driver/core/app_updater/app_updater_service.dart';
+import 'package:idara_driver/core/app_updater/app_updater_provider.dart';
+import 'package:idara_driver/core/constants/app_constants.dart';
+import 'package:idara_driver/core/widgets/app_snack_bars.dart';
+import 'package:idara_driver/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:idara_driver/features/notifications/presentation/bloc/notifications_bloc.dart';
+import 'package:idara_driver/generated/l10n.dart';
+import 'package:idara_driver/injection_container.dart';
+
+class IdaraDriverApp extends StatelessWidget {
+  const IdaraDriverApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<LocaleCubit>(
+          lazy: false,
+          create: (_) => getIt<LocaleCubit>(),
+        ),
+        BlocProvider<ThemeBloc>(
+          lazy: false,
+          create: (_) => getIt<ThemeBloc>()..add(const ThemeInitialize()),
+        ),
+        BlocProvider.value(value: getIt<AuthBloc>()),
+        BlocProvider(create: (_) => getIt<NotificationsBloc>()),
+      ],
+      child: const _AppView(),
+    );
+  }
+}
+
+class _AppView extends StatelessWidget {
+  const _AppView();
+
+  static const String _appUpdaterRestUrl = String.fromEnvironment(
+    '',
+  );
+  static const String _mockAppUpdaterAssetPath =
+      'lib/core/app_updater/app_updater_config.json';
+
+  bool get _useRestfulUpdater => _appUpdaterRestUrl.trim().isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<AuthBloc, AuthState>(
+      listenWhen: (previous, current) => previous.status != current.status,
+      listener: (context, state) {
+        final notificationsBloc = context.read<NotificationsBloc>();
+
+        if (state.status == AuthStatus.authenticated) {
+          notificationsBloc.add(const FetchUnreadCountEvent());
+          return;
+        }
+
+        if (state.status == AuthStatus.unauthenticated) {
+          notificationsBloc.add(const NotificationsResetEvent());
+        }
+      },
+      child:
+          BlocSelector<
+            ThemeBloc,
+            ThemeState,
+            ({ThemeData lightTheme, ThemeData darkTheme, ThemeMode themeMode})
+          >(
+            selector: (state) => (
+              lightTheme:
+                  state.lightThemeData ??
+                  state.createThemeData(brightness: Brightness.light),
+              darkTheme:
+                  state.darkThemeData ??
+                  state.createThemeData(brightness: Brightness.dark),
+              themeMode: state.themeMode,
+            ),
+            builder: (context, themeConfig) {
+              return BlocSelector<LocaleCubit, LocaleState, Locale>(
+                selector: (state) => state.locale,
+                builder: (context, locale) {
+                  return MaterialApp.router(
+                    title: AppConstants.appName,
+                    debugShowCheckedModeBanner: false,
+                    theme: themeConfig.lightTheme,
+                    darkTheme: themeConfig.darkTheme,
+                    themeMode: themeConfig.themeMode,
+                    locale: locale,
+                    localizationsDelegates: const [
+                      S.delegate,
+                      GlobalMaterialLocalizations.delegate,
+                      GlobalWidgetsLocalizations.delegate,
+                      GlobalCupertinoLocalizations.delegate,
+                    ],
+                    supportedLocales: S.delegate.supportedLocales,
+                    routerConfig: RouteConfigurations.router,
+                    scaffoldMessengerKey: rootScaffoldMessengerKey,
+                    builder: (context, child) {
+                      return AppUpdaterGuard(
+                        providerType: _useRestfulUpdater
+                            ? AppUpdaterProviderType.restful
+                            : AppUpdaterProviderType.custom,
+                        restfulUrl: _useRestfulUpdater
+                            ? _appUpdaterRestUrl
+                            : null,
+                        dio: _useRestfulUpdater ? getIt() : null,
+                        customProvider: _useRestfulUpdater
+                            ? null
+                            : AssetJsonAppUpdaterProvider(
+                                assetPath: _mockAppUpdaterAssetPath,
+                              ),
+                        languageCode: locale.languageCode,
+                        silent: kReleaseMode,
+                        child: child ?? const SizedBox.shrink(),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+    );
+  }
+}
+

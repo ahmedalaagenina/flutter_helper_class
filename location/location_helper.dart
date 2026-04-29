@@ -1,3 +1,7 @@
+// new normal one 
+// handle foreground and current location 
+
+
 import 'dart:math';
 
 import 'package:geolocator/geolocator.dart';

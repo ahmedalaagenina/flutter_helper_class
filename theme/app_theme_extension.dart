@@ -49,8 +49,11 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     return AppThemeExtension(
       typography: t < 0.5 ? typography : other.typography,
       colors: colors, // Colors will be handled by ColorScheme lerp
-      screenPadding:
-          EdgeInsetsGeometry.lerp(screenPadding, other.screenPadding, t)!,
+      screenPadding: EdgeInsetsGeometry.lerp(
+        screenPadding,
+        other.screenPadding,
+        t,
+      )!,
       borderRadius: BorderRadius.lerp(borderRadius, other.borderRadius, t)!,
       animationDuration: lerpDuration(
         animationDuration,
@@ -77,6 +80,7 @@ extension ThemeContextExtension on BuildContext {
 
   // Get the theme BLoC
   ThemeBloc get themeBloc => read<ThemeBloc>();
+  ThemeData get theme => Theme.of(this);
 
   // Get the app theme extension from the current theme
   AppThemeExtension get appTheme {
@@ -89,7 +93,8 @@ extension ThemeContextExtension on BuildContext {
   BaseTypography get typography => appTheme.typography;
 
   // Get colors directly
-  BaseColors get appColors => appTheme.colors;
+  BaseColors get colors => appTheme.colors;
+  ColorScheme get colorScheme => Theme.of(this).colorScheme;
 
   // Get common values from the theme extension
   EdgeInsetsGeometry get screenPadding => appTheme.screenPadding;
@@ -99,4 +104,14 @@ extension ThemeContextExtension on BuildContext {
   // Get current brightness
   Brightness get brightness => Theme.of(this).brightness;
   bool get isDarkMode => brightness == Brightness.dark;
+
+  /// local
+  // Get locale
+  LocaleState get localeState => read<LocaleCubit>().state;
+  // Get the locale BLoC
+  LocaleCubit get localeBloc => read<LocaleCubit>();
+
+  bool get isArabic => localeState.locale.languageCode == 'ar';
+  bool get isEnglish => localeState.locale.languageCode == 'en';
+  String get currentLanguageCode => localeState.locale.languageCode;
 }
