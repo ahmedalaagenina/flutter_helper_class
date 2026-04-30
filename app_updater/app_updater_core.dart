@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'app_updater.dart';
 
-enum AppUpdaterStatus { outdated, forcedUpdate, upToDate, inactive, unknown }
+enum AppUpdaterStatus { outdated, forcedUpdate, upToDate, maintenance, unknown }
 
 class AppUpdaterResult {
   AppUpdaterResult(this.status, {this.manifest});
@@ -13,11 +13,14 @@ class AppUpdaterResult {
   final AppUpdaterStatus status;
   final AppUpdaterDistributionManifest? manifest;
 
-  String? getMessageForLanguage(String code) {
-    return manifest?.currentPlatform?.status.getMessageForLanguage(code);
+  String? getMessageForLanguage(String code, {String fallbackCode = 'en'}) {
+    return manifest?.currentPlatform?.status.getMessageForLanguage(
+      code,
+      fallbackCode: fallbackCode,
+    );
   }
 
-  Map<TargetPlatform, String?>? get downloadUrls => manifest?.downloadUrls;
+  String? get downloadUrl => manifest?.currentPlatform?.downloadUrl;
 
   @override
   String toString() => 'status: $status, manifest: $manifest';
@@ -34,10 +37,11 @@ class AppUpdater {
   static Future<AppUpdaterResult> check({
     required AppUpdaterProvider provider,
     bool silent = false,
+    String? currentVersion,
   }) async {
     try {
-      final info = await packageInfo;
-      final platformVersion = Version.parse(info.version);
+      final version = currentVersion ?? (await packageInfo).version;
+      final platformVersion = Version.parse(version);
       final manifest = await provider.getDistributionManifest();
 
       if (manifest == null) {
@@ -49,8 +53,11 @@ class AppUpdater {
         return AppUpdaterResult(AppUpdaterStatus.unknown, manifest: manifest);
       }
 
-      if (!storeDetails.status.active) {
-        return AppUpdaterResult(AppUpdaterStatus.inactive, manifest: manifest);
+      if (storeDetails.status.maintenance) {
+        return AppUpdaterResult(
+          AppUpdaterStatus.maintenance,
+          manifest: manifest,
+        );
       }
 
       final minimumVersion = Version.parse(storeDetails.version.minimum);
@@ -73,11 +80,7 @@ class AppUpdater {
     }
   }
 
-  static Future<void> launchDownloadUrl(
-    Map<TargetPlatform, String?> data,
-  ) async {
-    final platform = defaultTargetPlatform;
-    final url = data[platform];
+  static Future<void> launchDownloadUrl(String? url) async {
     if (url == null || url.isEmpty) return;
 
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);

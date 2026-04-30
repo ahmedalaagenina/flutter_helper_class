@@ -63,16 +63,6 @@ class AppUpdaterDistributionManifest {
       _ => null,
     };
   }
-
-  Map<TargetPlatform, String?> get downloadUrls {
-    return {
-      TargetPlatform.android: android?.downloadUrl,
-      TargetPlatform.iOS: iOS?.downloadUrl,
-      TargetPlatform.macOS: macOS?.downloadUrl,
-      TargetPlatform.windows: windows?.downloadUrl,
-      TargetPlatform.linux: linux?.downloadUrl,
-    };
-  }
 }
 
 class AppUpdaterPlatformDistributionInfo {
@@ -116,20 +106,35 @@ class AppUpdaterVersionDetails {
 }
 
 class AppUpdaterStatusDetails {
-  const AppUpdaterStatusDetails({required this.active, required this.message});
+  const AppUpdaterStatusDetails({
+    required this.maintenance,
+    required this.message,
+  });
 
-  final bool active;
-  final Map<String?, dynamic>? message;
+  final bool maintenance;
+  final Map<String, String>? message;
 
   factory AppUpdaterStatusDetails.fromJson(Map<String, dynamic> json) {
     final rawMessage = json['message'];
+    final rawMaintenance = json['maintenance'];
     return AppUpdaterStatusDetails(
-      active: json['active'] as bool? ?? true,
+      maintenance: rawMaintenance as bool? ?? false,
       message: rawMessage is Map
-          ? Map<String?, dynamic>.from(rawMessage)
+          ? rawMessage.map(
+              (key, value) => MapEntry(key.toString(), value.toString()),
+            )
           : null,
     );
   }
 
-  String? getMessageForLanguage(String code) => message?[code];
+  String? getMessageForLanguage(String code, {String fallbackCode = 'en'}) {
+    final messages = message;
+    if (messages == null || messages.isEmpty) return null;
+
+    return messages[code] ??
+        messages[code.split('-').first] ??
+        messages[fallbackCode] ??
+        messages[fallbackCode.split('-').first] ??
+        messages.values.first;
+  }
 }

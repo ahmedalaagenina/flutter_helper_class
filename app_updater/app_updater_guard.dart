@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import 'app_updater.dart';
@@ -13,16 +12,13 @@ typedef OutdatedBannerBuilder =
       VoidCallback onUpdate,
       VoidCallback onDismiss,
     );
+typedef OnAppUpdaterError = void Function(Object error, StackTrace? stack);
 
 class AppUpdaterGuard extends StatefulWidget {
   const AppUpdaterGuard({
     super.key,
     required this.child,
-    this.providerType = AppUpdaterProviderType.restful,
-    this.restfulUrl,
-    this.restfulHeaders,
-    this.dio,
-    this.customProvider,
+    required this.provider,
     this.silent = false,
     this.languageCode = 'en',
     this.loadingBuilder,
@@ -33,11 +29,7 @@ class AppUpdaterGuard extends StatefulWidget {
   });
 
   final Widget child;
-  final AppUpdaterProviderType providerType;
-  final String? restfulUrl;
-  final Map<String, String>? restfulHeaders;
-  final Dio? dio;
-  final AppUpdaterProvider? customProvider;
+  final AppUpdaterProvider provider;
   final bool silent;
   final String languageCode;
   final WidgetBuilder? loadingBuilder;
@@ -51,8 +43,14 @@ class AppUpdaterGuard extends StatefulWidget {
 }
 
 class _AppUpdaterGuardState extends State<AppUpdaterGuard> {
-  late final AppUpdaterService _service = AppUpdaterService.instance;
+  AppUpdaterResult? _result;
   bool _bannerDismissed = false;
+  bool _initialized = false;
+  int _checkVersion = 0;
+
+  bool get _isMaintenance => _result?.status == AppUpdaterStatus.maintenance;
+  bool get _isForcedUpdate => _result?.status == AppUpdaterStatus.forcedUpdate;
+  bool get _isOutdated => _result?.status == AppUpdaterStatus.outdated;
 
   @override
   void initState() {
@@ -60,41 +58,81 @@ class _AppUpdaterGuardState extends State<AppUpdaterGuard> {
     _runCheck();
   }
 
+  @override
+  void didUpdateWidget(covariant AppUpdaterGuard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.provider != oldWidget.provider) {
+      _bannerDismissed = false;
+      _runCheck();
+    }
+  }
+
   Future<void> _runCheck() async {
-    await _service.init(
-      provider: widget.providerType,
-      restfulUrl: widget.restfulUrl,
-      restfulHeaders: widget.restfulHeaders,
-      dio: widget.dio,
-      customProvider: widget.customProvider,
-      silent: widget.silent,
-      languageCode: widget.languageCode,
-      onError: widget.onError,
-    );
-    if (mounted) setState(() {});
+    final checkVersion = ++_checkVersion;
+
+    if (_initialized || _result != null) {
+      setState(() {
+        _result = null;
+        _initialized = false;
+      });
+    }
+
+    try {
+      final result = await AppUpdater.check(
+        provider: widget.provider,
+        silent: widget.silent,
+      );
+
+      if (!mounted || checkVersion != _checkVersion) return;
+      setState(() {
+        _result = result;
+        _initialized = true;
+      });
+    } catch (error, stackTrace) {
+      widget.onError?.call(error, stackTrace);
+      if (!widget.silent) {
+        debugPrint('[AppUpdaterGuard] Error: $error');
+      }
+      if (!mounted || checkVersion != _checkVersion) return;
+      setState(() => _initialized = true);
+    }
+  }
+
+  Future<void> _launchStore() async {
+    try {
+      await AppUpdater.launchDownloadUrl(_result?.downloadUrl);
+    } catch (error) {
+      if (!widget.silent) {
+        debugPrint('[AppUpdaterGuard] Could not launch store URL: $error');
+      }
+    }
+  }
+
+  String? _message(String languageCode) {
+    return _result?.getMessageForLanguage(languageCode);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_service.isInitialized) {
+    if (!_initialized) {
       // Show the child (router content) while initialising so the splash
       // screen remains visible instead of flashing a blank loading scaffold.
       return widget.loadingBuilder?.call(context) ?? widget.child;
     }
-    if (_service.isInactive) {
-      final message = _service.maintenanceMessage(widget.languageCode);
+    if (_isMaintenance) {
+      final message = _message(widget.languageCode);
       return widget.maintenanceBuilder?.call(context, message) ??
           _DefaultMaintenance(message: message);
     }
 
-    if (_service.isForcedUpdate) {
-      final message = _service.maintenanceMessage(widget.languageCode);
+    if (_isForcedUpdate) {
+      final message = _message(widget.languageCode);
 
-      return widget.forceUpdateBuilder?.call(context, _service.launchStore) ??
-          _DefaultForceUpdate(onUpdate: _service.launchStore, message: message);
+      return widget.forceUpdateBuilder?.call(context, _launchStore) ??
+          _DefaultForceUpdate(onUpdate: _launchStore, message: message);
     }
 
-    if (_service.isOutdated && !_bannerDismissed) {
+    if (_isOutdated && !_bannerDismissed) {
       return Stack(
         children: [
           widget.child,
@@ -105,11 +143,11 @@ class _AppUpdaterGuardState extends State<AppUpdaterGuard> {
             child:
                 widget.outdatedBannerBuilder?.call(
                   context,
-                  _service.launchStore,
+                  _launchStore,
                   () => setState(() => _bannerDismissed = true),
                 ) ??
                 _DefaultOutdatedBanner(
-                  onUpdate: _service.launchStore,
+                  onUpdate: _launchStore,
                   onDismiss: () => setState(() => _bannerDismissed = true),
                 ),
           ),
@@ -121,6 +159,7 @@ class _AppUpdaterGuardState extends State<AppUpdaterGuard> {
   }
 }
 
+// a simple default widget to show if no widget is provided (Default UI)
 class _DefaultMaintenance extends StatelessWidget {
   const _DefaultMaintenance({this.message});
 
