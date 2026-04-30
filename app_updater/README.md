@@ -52,6 +52,33 @@ AppUpdaterGuard(
 )
 ```
 
+## Native Splash Integration
+
+If your app uses `flutter_native_splash` with `FlutterNativeSplash.preserve`,
+do not rely only on router redirects to call `FlutterNativeSplash.remove()`.
+The updater can intentionally block normal routing in `maintenance` or
+`forcedUpdate` states, so router-based splash removal may never run and the app
+can appear stuck on the splash screen.
+
+Current integration:
+
+```dart
+AppUpdaterGuard(
+  provider: updaterProvider,
+  onResult: (_) => FlutterNativeSplash.remove(),
+  onError: (_, _) => FlutterNativeSplash.remove(),
+  child: child,
+)
+```
+
+This removes the native splash as soon as the updater check finishes, whether
+the result allows the app, blocks for maintenance, or blocks for a forced
+update.
+
+For a cleaner app-wide architecture, you can instead remove the native splash
+from your root app startup/readiness flow, before route or updater decisions.
+Avoid making route redirect logic the only place that removes the native splash.
+
 ## Manifest Format
 
 ```json
