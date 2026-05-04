@@ -1,12 +1,25 @@
 import 'package:dio/dio.dart';
-import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_driver/core/networking/networking.dart';
+import 'package:idara_esign/core/networking/networking.dart';
 
-class ApiServiceImpl implements IApiService {
+class ApiService implements IApiService {
   final Dio _dio;
 
-  ApiServiceImpl(this._dio);
+  ApiService(this._dio);
+
+  /// Registering Dio and CancelToken
+  //  getIt.registerLazySingleton(() => CancelToken());
+  //  getIt
+  //      .registerSingletonAsync<Dio>(() async => await NetworkHelper.createDio());
+
+  //  getIt.registerSingletonWithDependencies<INetworkService>(
+  //    () => NetworkService(getIt<Dio>(), getIt<CancelToken>()),
+  //    dependsOn: [Dio],
+  //  );
+  /// in main.dart
+  ///  WidgetsFlutterBinding.ensureInitialized();
+  // setupServiceLocator();
+  // await getIt.allReady();
 
   //? How to cancel request
   // CancelToken? _uploadCancelToken = CancelToken();
@@ -24,9 +37,8 @@ class ApiServiceImpl implements IApiService {
     CancelToken? cancelToken,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
-    CacheOptions? cacheOptions,
   }) async {
-    options = await _buildOptions(options, retryOptions, cacheOptions);
+    options = _mergeRetryOptions(options, retryOptions);
     final response = await _dio.get<T>(
       path,
       queryParameters: queryParameters,
@@ -48,9 +60,8 @@ class ApiServiceImpl implements IApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
-    CacheOptions? cacheOptions,
   }) async {
-    options = await _buildOptions(options, retryOptions, cacheOptions);
+    options = _mergeRetryOptions(options, retryOptions);
     final response = await _dio.post<T>(
       path,
       data: data,
@@ -74,9 +85,8 @@ class ApiServiceImpl implements IApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
-    CacheOptions? cacheOptions,
   }) async {
-    options = await _buildOptions(options, retryOptions, cacheOptions);
+    options = _mergeRetryOptions(options, retryOptions);
     final response = await _dio.put<T>(
       path,
       data: data,
@@ -98,9 +108,8 @@ class ApiServiceImpl implements IApiService {
     Options? options,
     CancelToken? cancelToken,
     RetryOptions? retryOptions,
-    CacheOptions? cacheOptions,
   }) async {
-    options = await _buildOptions(options, retryOptions, cacheOptions);
+    options = _mergeRetryOptions(options, retryOptions);
     final response = await _dio.delete<T>(
       path,
       data: data,
@@ -122,9 +131,8 @@ class ApiServiceImpl implements IApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
-    CacheOptions? cacheOptions,
   }) async {
-    options = await _buildOptions(options, retryOptions, cacheOptions);
+    options = _mergeRetryOptions(options, retryOptions);
     final response = await _dio.patch<T>(
       path,
       data: data,
@@ -267,6 +275,7 @@ class ApiServiceImpl implements IApiService {
       processedFiles[key] = await _createMultipartFile(
         filePath: value.filePath,
         bytes: value.bytes,
+        blobUrl: value.blobUrl,
         filename: value.filename,
         contentType: value.contentType,
       );
@@ -293,6 +302,7 @@ class ApiServiceImpl implements IApiService {
   Future<MultipartFile> _createMultipartFile({
     String? filePath,
     Uint8List? bytes,
+    String? blobUrl,
     required String filename,
     (String, String)? contentType,
   }) async {
@@ -301,7 +311,18 @@ class ApiServiceImpl implements IApiService {
       mediaType = DioMediaType(contentType.$1, contentType.$2);
     }
 
-    if (kIsWeb || bytes != null) {
+    if (blobUrl != null) {
+      // Blob URL — fetch bytes using the existing _dio (interceptors included)
+      final res = await _dio.get<List<int>>(
+        blobUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return MultipartFile.fromBytes(
+        Uint8List.fromList(res.data!),
+        filename: filename,
+        contentType: mediaType,
+      );
+    } else if (kIsWeb || bytes != null) {
       // Web or explicit bytes
       return MultipartFile.fromBytes(
         bytes ?? [],
@@ -316,31 +337,10 @@ class ApiServiceImpl implements IApiService {
         contentType: mediaType,
       );
     } else {
-      throw ArgumentError('Either filePath or bytes must be provided');
-    }
-  }
-
-  /// Helper method to build Options with retry and cache options.
-  ///
-  /// When [cacheOptions] is null, the global [DioCacheInterceptor] defaults
-  /// are used. When provided, the per-request cache options override them.
-  Future<Options> _buildOptions(
-    Options? options,
-    RetryOptions? retryOptions,
-    CacheOptions? cacheOptions,
-  ) async {
-    var merged = _mergeRetryOptions(options, retryOptions);
-
-    if (cacheOptions != null) {
-      final cacheAsOptions = cacheOptions.toOptions();
-      merged = cacheAsOptions.copyWith(
-        method: merged.method,
-        headers: merged.headers,
-        extra: {...?merged.extra, ...?cacheAsOptions.extra},
+      throw ArgumentError(
+        'Either filePath, bytes, or blobUrl must be provided',
       );
     }
-
-    return merged;
   }
 
   // Helper method to merge retry options
