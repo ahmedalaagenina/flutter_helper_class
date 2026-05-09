@@ -12,6 +12,7 @@ typedef OutdatedBannerBuilder =
       VoidCallback onUpdate,
       VoidCallback onDismiss,
     );
+typedef OnAppUpdaterResult = void Function(AppUpdaterResult result);
 typedef OnAppUpdaterError = void Function(Object error, StackTrace? stack);
 
 class AppUpdaterGuard extends StatefulWidget {
@@ -21,10 +22,12 @@ class AppUpdaterGuard extends StatefulWidget {
     required this.provider,
     this.silent = false,
     this.languageCode = 'en',
+    this.renderChildWhileLoading = true,
     this.loadingBuilder,
     this.maintenanceBuilder,
     this.forceUpdateBuilder,
     this.outdatedBannerBuilder,
+    this.onResult,
     this.onError,
   });
 
@@ -32,10 +35,12 @@ class AppUpdaterGuard extends StatefulWidget {
   final AppUpdaterProvider provider;
   final bool silent;
   final String languageCode;
+  final bool renderChildWhileLoading;
   final WidgetBuilder? loadingBuilder;
   final MaintenanceBuilder? maintenanceBuilder;
   final ForceUpdateBuilder? forceUpdateBuilder;
   final OutdatedBannerBuilder? outdatedBannerBuilder;
+  final OnAppUpdaterResult? onResult;
   final OnAppUpdaterError? onError;
 
   @override
@@ -84,6 +89,7 @@ class _AppUpdaterGuardState extends State<AppUpdaterGuard> {
       );
 
       if (!mounted || checkVersion != _checkVersion) return;
+      widget.onResult?.call(result);
       setState(() {
         _result = result;
         _initialized = true;
@@ -115,9 +121,12 @@ class _AppUpdaterGuardState extends State<AppUpdaterGuard> {
   @override
   Widget build(BuildContext context) {
     if (!_initialized) {
-      // Show the child (router content) while initialising so the splash
-      // screen remains visible instead of flashing a blank loading scaffold.
-      return widget.loadingBuilder?.call(context) ?? widget.child;
+      if (widget.loadingBuilder != null) {
+        return widget.loadingBuilder!(context);
+      }
+      return widget.renderChildWhileLoading
+          ? widget.child
+          : const SizedBox.shrink();
     }
     if (_isMaintenance) {
       final message = _message(widget.languageCode);

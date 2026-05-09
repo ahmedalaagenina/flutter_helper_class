@@ -16,38 +16,42 @@ class AppUpdaterDistributionManifest {
   final AppUpdaterPlatformDistributionInfo? linux;
 
   factory AppUpdaterDistributionManifest.fromJson(Map<String, dynamic> json) {
+    final data = json["data"];
+    if (data == null) {
+      return const AppUpdaterDistributionManifest();
+    }
     return AppUpdaterDistributionManifest(
-      android: json['android'] != null
+      android: data['android'] != null
           ? AppUpdaterPlatformDistributionInfo.fromJson(
-              Map<String, dynamic>.from(json['android'] as Map),
+              Map<String, dynamic>.from(data['android'] as Map),
             )
           : null,
-      iOS: json['iOS'] != null
+      iOS: data['iOS'] != null
           ? AppUpdaterPlatformDistributionInfo.fromJson(
-              Map<String, dynamic>.from(json['iOS'] as Map),
+              Map<String, dynamic>.from(data['iOS'] as Map),
             )
-          : json['ios'] != null
+          : data['ios'] != null
           ? AppUpdaterPlatformDistributionInfo.fromJson(
-              Map<String, dynamic>.from(json['ios'] as Map),
-            )
-          : null,
-      macOS: json['macOS'] != null
-          ? AppUpdaterPlatformDistributionInfo.fromJson(
-              Map<String, dynamic>.from(json['macOS'] as Map),
-            )
-          : json['macos'] != null
-          ? AppUpdaterPlatformDistributionInfo.fromJson(
-              Map<String, dynamic>.from(json['macos'] as Map),
+              Map<String, dynamic>.from(data['ios'] as Map),
             )
           : null,
-      windows: json['windows'] != null
+      macOS: data['macOS'] != null
           ? AppUpdaterPlatformDistributionInfo.fromJson(
-              Map<String, dynamic>.from(json['windows'] as Map),
+              Map<String, dynamic>.from(data['macOS'] as Map),
+            )
+          : data['macos'] != null
+          ? AppUpdaterPlatformDistributionInfo.fromJson(
+              Map<String, dynamic>.from(data['macos'] as Map),
             )
           : null,
-      linux: json['linux'] != null
+      windows: data['windows'] != null
           ? AppUpdaterPlatformDistributionInfo.fromJson(
-              Map<String, dynamic>.from(json['linux'] as Map),
+              Map<String, dynamic>.from(data['windows'] as Map),
+            )
+          : null,
+      linux: data['linux'] != null
+          ? AppUpdaterPlatformDistributionInfo.fromJson(
+              Map<String, dynamic>.from(data['linux'] as Map),
             )
           : null,
     );
@@ -62,6 +66,11 @@ class AppUpdaterDistributionManifest {
       TargetPlatform.linux => linux,
       _ => null,
     };
+  }
+
+  @override
+  String toString() {
+    return 'AppUpdaterDistributionManifest{android: $android, iOS: $iOS, macOS: $macOS, windows: $windows, linux: $linux}';
   }
 }
 
@@ -89,6 +98,11 @@ class AppUpdaterPlatformDistributionInfo {
       ),
     );
   }
+
+  @override
+  String toString() {
+    return 'AppUpdaterPlatformDistributionInfo{version: $version, downloadUrl: $downloadUrl, status: $status}';
+  }
 }
 
 class AppUpdaterVersionDetails {
@@ -102,6 +116,11 @@ class AppUpdaterVersionDetails {
       minimum: json['minimum'].toString(),
       latest: json['latest'].toString(),
     );
+  }
+
+  @override
+  String toString() {
+    return 'AppUpdaterVersionDetails{minimum: $minimum, latest: $latest}';
   }
 }
 
@@ -125,6 +144,11 @@ class AppUpdaterStatusDetails {
             )
           : null,
     );
+  }
+
+  @override
+  String toString() {
+    return 'AppUpdaterStatusDetails{maintenance: $maintenance, message: $message}';
   }
 
   String? getMessageForLanguage(String code, {String fallbackCode = 'en'}) {
