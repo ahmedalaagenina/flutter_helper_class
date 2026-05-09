@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:idara_esign/config/routes/app_router.dart';
 import 'package:idara_esign/core/notification_manager/notification_manager.dart';
@@ -9,6 +10,9 @@ class NotificationApi {
 
   static Future<String?> getDeviceToken() async {
     try {
+      if (kIsWeb) {
+        return await WebNotificationService.getToken();
+      }
       return await messaging.getToken();
     } catch (e) {
       AppLog.e('Error getting FCM token: $e');
@@ -21,6 +25,13 @@ class NotificationApi {
   // await NotificationApi.init();
 
   static Future<void> init() async {
+    // Web has its own pipeline: no flutter_local_notifications, no Platform.is*,
+    // and getToken needs a VAPID key. Delegate and bail out.
+    if (kIsWeb) {
+      await WebNotificationService.init();
+      return;
+    }
+
     // Enabling foreground notifications for Android
     // is Done in local Notification class
     // Enabling foreground notifications for IOS
