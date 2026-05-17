@@ -69,31 +69,30 @@ Future<void> _show({
 void listenForNotificationClicks(
   void Function(Map<String, dynamic> data) onClick,
 ) {
-  web.window.navigator.serviceWorker.onmessage =
-      ((web.MessageEvent event) {
-        final raw = event.data;
-        if (raw == null || !raw.isA<JSString>()) return;
+  web.window.navigator.serviceWorker.onmessage = ((web.MessageEvent event) {
+    final raw = event.data;
+    if (raw == null || !raw.isA<JSString>()) return;
 
-        final envelopeJson = (raw as JSString).toDart;
+    final envelopeJson = (raw as JSString).toDart;
 
-        Map<String, dynamic> envelope;
-        try {
-          final decoded = jsonDecode(envelopeJson);
-          if (decoded is! Map) return;
-          envelope = Map<String, dynamic>.from(decoded);
-        } catch (_) {
-          return;
-        }
+    Map<String, dynamic> envelope;
+    try {
+      final decoded = jsonDecode(envelopeJson);
+      if (decoded is! Map) return;
+      envelope = Map<String, dynamic>.from(decoded);
+    } catch (_) {
+      return;
+    }
 
-        if (envelope['type'] != 'notificationclick') return;
+    if (envelope['type'] != 'notificationclick') return;
 
-        final payload = envelope['data'];
-        final data = payload is Map
-            ? Map<String, dynamic>.from(payload)
-            : <String, dynamic>{};
-        debugPrint('[browser_notification] click received: $data');
-        onClick(data);
-      }).toJS;
+    final payload = envelope['data'];
+    final data = payload is Map
+        ? Map<String, dynamic>.from(payload)
+        : <String, dynamic>{};
+    debugPrint('[browser_notification] click received: $data');
+    onClick(data);
+  }).toJS;
 }
 
 /// On cold start, the SW may have appended notification data to the URL via
@@ -128,11 +127,7 @@ Map<String, dynamic>? consumePendingNotification() {
   final newSearch = remaining.isEmpty
       ? ''
       : '?${remaining.entries.map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}').join('&')}';
-  web.window.history.replaceState(
-    null.jsify(),
-    '',
-    '$pathname$newSearch$hash',
-  );
+  web.window.history.replaceState(null.jsify(), '', '$pathname$newSearch$hash');
 
   debugPrint('[browser_notification] consumed cold-start payload: $data');
   return data;

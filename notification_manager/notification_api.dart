@@ -44,6 +44,7 @@ class NotificationApi {
     NotificationHelper().initialize();
     NotificationApi.requestPermission();
     NotificationApi.foregroundNotification();
+    _registerForegroundActions();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       Future.delayed(const Duration(milliseconds: 500), () async {
         await NotificationApi.setupInteractedMessage();
@@ -53,6 +54,31 @@ class NotificationApi {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     var token = await getDeviceToken();
     debugPrint("token: $token");
+  }
+
+  /// Register all foreground notification actions here.
+  /// This is the best place because it runs once during notification setup.
+  static void _registerForegroundActions() {
+    final handler = ForegroundNotificationHandler.instance;
+
+    // ── Refresh unread notification count ──────────────────────────────
+    // Runs on EVERY notification → updates the badge counter in the app.
+    handler.registerAction(
+      ForegroundNotificationAction(
+        id: 'refresh_unread_count',
+        type: NotificationActionType.apiCall,
+        execute: (message, context) async {
+          if (context == null) return;
+          try {
+            context.read<NotificationsBloc>().add(
+              const FetchUnreadCountEvent(),
+            );
+          } catch (_) {
+            // Bloc not available in the tree yet — ignore.
+          }
+        },
+      ),
+    );
   }
 
   static void requestPermission() async {
@@ -79,9 +105,16 @@ class NotificationApi {
 
   /// Handle foreground message and notification
   static void foregroundNotification() {
+    // Provide the root context so in-app UI actions can show snackbars, etc.
+    ForegroundNotificationHandler.instance.contextProvider =
+        () => rootNavigatorKey.currentContext;
+
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('Got a message whilst in the foreground!');
       debugPrint('Message data: ${message.data}');
+
+      // Fan-out to all registered foreground actions (API calls, UI, etc.)
+      ForegroundNotificationHandler.instance.handleMessage(message);
 
       RemoteNotification? notification = message.notification;
       AndroidNotification? android = message.notification?.android;
