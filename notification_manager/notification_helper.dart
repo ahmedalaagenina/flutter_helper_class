@@ -428,17 +428,28 @@ class NotificationHelper {
     // }
   }
 
-  static Map convertPayloadToMap(String payload) {
-    final String nPayload = payload.substring(1, payload.length - 1);
-    List<String> split = [];
-    nPayload.split(",").forEach((String s) => split.addAll(s.split(":")));
-    Map mapped = {};
-    for (int i = 0; i < split.length + 1; i++) {
-      if (i % 2 == 1) {
-        mapped.addAll({split[i - 1].trim().toString(): split[i].trim()});
+  static Map<String, dynamic> convertPayloadToMap(String payload) {
+    try {
+      return Map<String, dynamic>.from(jsonDecode(payload));
+    } catch (e) {
+      debugPrint("Error decoding notification payload: $e");
+      // Fallback for old string format if necessary
+      try {
+        final String nPayload = payload.substring(1, payload.length - 1);
+        List<String> split = [];
+        nPayload.split(",").forEach((String s) => split.addAll(s.split(":")));
+        Map<String, dynamic> mapped = {};
+        for (int i = 0; i < split.length + 1; i++) {
+          if (i % 2 == 1) {
+            mapped[split[i - 1].trim().toString()] = split[i].trim();
+          }
+        }
+        return mapped;
+      } catch (e2) {
+        debugPrint("Fallback payload parsing failed: $e2");
+        return {};
       }
     }
-    return mapped;
   }
 
   /// Parse nested payloads from notifications (new way)
