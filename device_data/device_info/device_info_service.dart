@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:developer';
 import 'dart:io';
 
+import 'package:android_id/android_id.dart';
+import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:idara_esign/core/utils/extensions.dart';
 
 // getIt.registerLazySingleton<IDeviceInfoService>(() => DeviceInfoService());
 // getIt.registerLazySingleton<DeviceInfoManager>(
@@ -27,6 +32,25 @@ class AppDeviceInfo {
   bool get isAndroid => platform == AppDevicePlatform.android;
   bool get isIos => platform == AppDevicePlatform.ios;
   bool get isWeb => platform == AppDevicePlatform.web;
+  Map<String, dynamic> toJson() {
+    if (isAndroid) {
+      return android!.data;
+    } else if (isIos) {
+      return ios!.data;
+    } else if (isWeb) {
+      return web!.data;
+    }
+    return {};
+  }
+
+  String toPrettyString() => toJson().toPrettyJson();
+
+  void printPretty() {
+    debugPrint(toPrettyString());
+  }
+
+  @override
+  String toString() => toPrettyString();
 }
 
 class DeviceInfoManager {
@@ -70,10 +94,19 @@ class DeviceInfoService implements IDeviceInfoService {
   @override
   Future<String?> getDeviceSerial() async {
     final baseInfo = await _plugin.deviceInfo;
-    if (Platform.isIOS && baseInfo is IosDeviceInfo) {
-      return '${baseInfo.model}_${baseInfo.identifierForVendor!}';
+    if (kIsWeb && baseInfo is WebBrowserInfo) {
+      final raw =
+          '${baseInfo.vendor}-${baseInfo.userAgent}-${baseInfo.hardwareConcurrency}-${baseInfo.maxTouchPoints}';
+      return sha256.convert(utf8.encode(raw)).toString();
+    } else if (Platform.isIOS && baseInfo is IosDeviceInfo) {
+      return baseInfo.identifierForVendor;
     } else if (Platform.isAndroid && baseInfo is AndroidDeviceInfo) {
-      return '${baseInfo.model}_${baseInfo.id}';
+      const androidIdPlugin = AndroidId();
+      final androidId = await androidIdPlugin.getId();
+      if (androidId != null) return androidId;
+      final info = await _plugin.androidInfo;
+      final raw = '${info.fingerprint}-${info.id}';
+      return sha256.convert(utf8.encode(raw)).toString();
     }
     return null;
   }
@@ -83,14 +116,27 @@ class DeviceInfoService implements IDeviceInfoService {
     final baseInfo = await _plugin.deviceInfo;
 
     if (kIsWeb && baseInfo is WebBrowserInfo) {
-      return AppDeviceInfo(platform: AppDevicePlatform.web, web: baseInfo);
+      AppDeviceInfo deviceInfo = AppDeviceInfo(
+        platform: AppDevicePlatform.web,
+        web: baseInfo,
+      );
+
+      return deviceInfo;
     } else if (Platform.isAndroid && baseInfo is AndroidDeviceInfo) {
-      return AppDeviceInfo(
+      AppDeviceInfo deviceInfo = AppDeviceInfo(
         platform: AppDevicePlatform.android,
         android: baseInfo,
       );
+      log('======= deviceInfo android =======>');
+      log(deviceInfo.toString());
+      log('======= deviceInfo android =======>');
+      return deviceInfo;
     } else if (Platform.isIOS && baseInfo is IosDeviceInfo) {
-      return AppDeviceInfo(platform: AppDevicePlatform.ios, ios: baseInfo);
+      AppDeviceInfo deviceInfo = AppDeviceInfo(
+        platform: AppDevicePlatform.ios,
+        ios: baseInfo,
+      );
+      return deviceInfo;
     }
 
     return const AppDeviceInfo(platform: AppDevicePlatform.unknown);

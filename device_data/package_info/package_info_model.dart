@@ -1,15 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
+import 'package:idara_esign/core/utils/extensions.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 enum AppInstallerStore { googlePlay, appStore, unknown }
-
-extension PrettyMapJson on Map<String, dynamic> {
-  String toPrettyJson() {
-    return const JsonEncoder.withIndent('  ').convert(this);
-  }
-}
 
 @immutable
 class AppPackageInfo extends PackageInfo {
@@ -67,10 +60,6 @@ class AppPackageInfo extends PackageInfo {
   }
 
   String toPrettyString() => toJson().toPrettyJson();
-
-  void printPretty() {
-    debugPrint(toPrettyString());
-  }
 
   @override
   String toString() => toPrettyString();

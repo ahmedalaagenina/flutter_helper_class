@@ -8,7 +8,15 @@ abstract class IIpInfoService {
 class IpInfoService implements IIpInfoService {
   final Dio _dio;
 
-  IpInfoService({Dio? dio}) : _dio = dio ?? Dio();
+  IpInfoService({Dio? dio})
+    : _dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              connectTimeout: const Duration(seconds: 3),
+              receiveTimeout: const Duration(seconds: 3),
+            ),
+          );
 
   @override
   Future<String?> getIpAddress() async {

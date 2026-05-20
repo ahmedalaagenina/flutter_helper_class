@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:idara_esign/core/services/package_info/package_info_model.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -19,7 +21,7 @@ class PackageInfoService implements IPackageInfoService {
   Future<AppPackageInfo> getPackageInfo() async {
     final info = await PackageInfo.fromPlatform();
 
-    return AppPackageInfo(
+    final packageInfo = AppPackageInfo(
       appName: info.appName,
       packageName: info.packageName,
       version: info.version,
@@ -29,6 +31,7 @@ class PackageInfoService implements IPackageInfoService {
       installTime: info.installTime,
       updateTime: info.updateTime,
     );
+    return packageInfo;
   }
 }
 

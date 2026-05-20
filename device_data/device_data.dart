@@ -1,7 +1,6 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 import 'package:idara_esign/core/services/device_info/device_info_service.dart';
 import 'package:idara_esign/core/services/ip/ip_info_service.dart';
 import 'package:idara_esign/core/services/location/location_service.dart';
@@ -51,25 +50,62 @@ class DeviceInfoModel {
     this.ipAddress,
   });
 
+  /// Headers that match the backend's expected names (see
+  /// `Request::header(...)` lookups in the API). Empty/null values are
+  /// skipped. `locale` is omitted because `Accept-Language` already carries
+  /// it; `ip_address` is omitted because the backend reads it server-side
+  /// from the request connection.
+  Map<String, String> toHeaders() {
+    return {
+      if (deviceId != null && deviceId!.isNotEmpty) 'X-Device-Id': deviceId!,
+      if (macAddress != null && macAddress!.isNotEmpty)
+        'X-MAC-Address': macAddress!,
+      if (deviceType != null && deviceType!.isNotEmpty)
+        'X-Device-Type': deviceType!,
+      if (deviceModel != null && deviceModel!.isNotEmpty)
+        'X-Device-Model': deviceModel!,
+      if (deviceName != null && deviceName!.isNotEmpty)
+        'X-Device-Name': deviceName!,
+      if (company != null && company!.isNotEmpty) 'X-Device-Company': company!,
+      if (appVersion != null && appVersion!.isNotEmpty)
+        'X-App-Version': appVersion!,
+      if (osVersion != null && osVersion!.isNotEmpty)
+        'X-OS-Version': osVersion!,
+      if (browserVersion != null && browserVersion!.isNotEmpty)
+        'X-Browser-Version': browserVersion!,
+      if (timezone != null && timezone!.isNotEmpty) 'X-Timezone': timezone!,
+      if (latitude != null && latitude!.isNotEmpty) 'X-Latitude': latitude!,
+      if (longitude != null && longitude!.isNotEmpty) 'X-Longitude': longitude!,
+      if (screenResolution != null && screenResolution!.isNotEmpty)
+        'X-Screen-Resolution': screenResolution!,
+      if (networkType != null && networkType!.isNotEmpty)
+        'X-Network-Type': networkType!,
+      // if (locale != null && locale!.isNotEmpty) 'Accept-Language': locale!,
+      if (ipAddress != null && ipAddress!.isNotEmpty)
+        'X-IP-Address': ipAddress!,
+      if (referer != null && referer!.isNotEmpty) 'referer': referer!,
+    };
+  }
+
   Map<String, dynamic> toJson() {
     return {
-      'deviceId': deviceId,
-      'macAddress': macAddress,
-      'deviceType': deviceType,
-      'deviceModel': deviceModel,
-      'deviceName': deviceName,
-      'company': company,
-      'appVersion': appVersion,
-      'osVersion': osVersion,
-      'browserVersion': browserVersion,
-      'timezone': timezone,
-      'latitude': latitude,
-      'longitude': longitude,
-      'locale': locale,
-      'screenResolution': screenResolution,
-      'networkType': networkType,
-      'referer': referer,
-      'ipAddress': ipAddress,
+      "device_id": deviceId,
+      "mac_address": macAddress,
+      "device_type": deviceType,
+      "device_model": deviceModel,
+      "device_name": deviceName,
+      "company": company,
+      "app_version": appVersion,
+      "os_version": osVersion,
+      "browser_version": browserVersion,
+      "timezone": timezone,
+      "latitude": latitude,
+      "longitude": longitude,
+      "locale": locale,
+      "screen_resolution": screenResolution,
+      "network_type": networkType,
+      "referer": referer,
+      "ip_address": ipAddress,
     };
   }
 
@@ -103,8 +139,11 @@ class DeviceData {
 
   DeviceInfoModel? _cachedInfo;
 
+  DeviceInfoModel? get cachedInfo => _cachedInfo;
+
   Future<DeviceInfoModel> collectDeviceInfo({
-    bool forceRefresh = false
+    bool forceRefresh = false,
+    bool requestLocationPermission = false,
   }) async {
     if (_cachedInfo != null && !forceRefresh) {
       return _cachedInfo!;
@@ -171,7 +210,6 @@ class DeviceData {
 
       String? ipAddress;
       try {
-
         ipAddress = await _ipInfoService.getIpAddress();
       } catch (e) {
         AppLog.e('Failed to get IP address via service: $e');
@@ -188,8 +226,10 @@ class DeviceData {
       String? longitude = '0.0';
       try {
         // LocationService internally timeouts hardware GPS hangs to execute IP Fallback.
-        final position = await _locationService.getCurrentLocation();
-        
+        final position = await _locationService.getCurrentLocation(
+          requestIfNeeded: requestLocationPermission,
+        );
+
         if (position != null) {
           latitude = position.latitude.toString();
           longitude = position.longitude.toString();

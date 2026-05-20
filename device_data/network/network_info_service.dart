@@ -9,7 +9,7 @@ class NetworkInfoService implements INetworkInfoService {
   final Connectivity _connectivity;
 
   NetworkInfoService({Connectivity? connectivity})
-      : _connectivity = connectivity ?? Connectivity();
+    : _connectivity = connectivity ?? Connectivity();
 
   @override
   Future<String?> getNetworkType() async {

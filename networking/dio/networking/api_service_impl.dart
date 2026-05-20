@@ -312,8 +312,9 @@ class ApiService implements IApiService {
     }
 
     if (blobUrl != null) {
-      // Blob URL — fetch bytes using the existing _dio (interceptors included)
-      final res = await _dio.get<List<int>>(
+      // Blob URL
+      final blobDio = Dio();
+      final res = await blobDio.get<List<int>>(
         blobUrl,
         options: Options(responseType: ResponseType.bytes),
       );
@@ -355,14 +356,4 @@ class ApiService implements IApiService {
 
     return mergedOptions;
   }
-
-  //? Here's how to use each approach:
-  // This happens automatically for all requests:
-  // try {
-  //   final response = await apiService.get('/endpoint',
-  //       options: Options(extra: {'retryCount': 0}),); //? For handle Number of retries
-  // Success
-  // } catch (e) {
-  // All retries failed
-  // }
 }
