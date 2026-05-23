@@ -116,11 +116,13 @@ class WebNotificationService {
   /// Default destination on tap. Extend by reading `data['click_action']`
   /// once notification types are formalized.
   static void _navigateFromNotification(Map<String, dynamic> data) {
-    final context = rootNavigatorKey.currentContext;
-    if (context == null) {
-      debugPrint('[WebNotificationService] no navigator context — skipping');
-      return;
-    }
-    context.go(Routes.userDocuments);
+    // final context = rootNavigatorKey.currentContext;
+    // if (context == null) {
+    //   debugPrint('[WebNotificationService] no navigator context — skipping');
+    //   return;
+    // }
+    // context.go(Routes.userDocuments);
+
+    NotificationNavigator.handle(Map<String, dynamic>.from(map));
   }
 }

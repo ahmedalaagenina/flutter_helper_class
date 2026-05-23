@@ -400,7 +400,7 @@ class NotificationHelper {
     var map = convertPayloadToMap(details.payload!);
     final context = rootNavigatorKey.currentContext;
     if (context == null) return;
-    context.go(Routes.userDocuments);
+    NotificationNavigator.handle(Map<String, dynamic>.from(map));
 
     ///key.currentContext!
     // if (RouteConfigurations.parentNavigatorKey.currentState != null) {

@@ -154,6 +154,7 @@ class NotificationApi {
     debugPrint("Opened Notification Data : ${message.data}");
     final context = rootNavigatorKey.currentContext;
     if (context == null) return;
+    NotificationNavigator.handle(Map<String, dynamic>.from(map));
 
     ///we can use normal navigatorKey.currentContext! to Do what we want
     // if (RouteConfigurations.parentNavigatorKey.currentState != null) {
