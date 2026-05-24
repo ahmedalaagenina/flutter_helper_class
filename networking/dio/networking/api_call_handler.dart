@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:idara_driver/core/networking/networking.dart';
 import 'package:idara_driver/core/util/app_log.dart';
 
+import 'error/app_failure.dart';
+
 typedef Data<T> = Either<AppFailure, T>;
 
 enum DataSourceType { remote, cache, offlineQueued }
@@ -74,6 +76,15 @@ class ApiCallHandler {
       await _runCacheCall(cacheCall, remoteData);
       return Result<T>(data: Right(remoteData), source: DataSourceType.remote);
     } on DioException catch (dioError) {
+      // Silently drop duplicate in-flight requests — BaseBloc.safeHandle
+      // will intercept DuplicateRequestFailure and emit nothing.
+      if (dioError.message == DuplicateRequestInterceptor.duplicateMessage) {
+        return Result<T>(
+          data: Left(const DuplicateRequestFailure()),
+          source: DataSourceType.remote,
+        );
+      }
+
       /// all of this code is for notify the ui that the request is offline Queued must
       /// make (returnSyntheticResponse == false in OfflineSyncInterceptor)
       ///

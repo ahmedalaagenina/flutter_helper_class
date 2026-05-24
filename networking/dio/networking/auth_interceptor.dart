@@ -55,8 +55,8 @@ class AuthInterceptor extends QueuedInterceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 401 &&
-        _shouldAttemptRefreshOn401(err.requestOptions)) {
+    if ((err.response?.statusCode == 401 || err.response?.statusCode == 403) &&
+        _shouldAttemptRefresh(err.requestOptions)) {
       // If logout was already triggered, skip refresh entirely
       if (_forceLogout) {
         debugPrint('AuthInterceptor: Logout already triggered, rejecting.');
@@ -85,7 +85,7 @@ class AuthInterceptor extends QueuedInterceptor {
         }
 
         debugPrint(
-          'AuthInterceptor: 401 received. Attempting to refresh token...',
+          'AuthInterceptor: ${err.response?.statusCode} received With body: ${err.response?.data}. Attempting to refresh token...',
         );
         final newToken = await _attemptTokenRefresh();
 
@@ -168,7 +168,7 @@ class AuthInterceptor extends QueuedInterceptor {
         !path.contains(ApiConstant.verifyOtp);
   }
 
-  bool _shouldAttemptRefreshOn401(RequestOptions options) {
+  bool _shouldAttemptRefresh(RequestOptions options) {
     if (options.extra['_isRetryAfterRefresh'] == true) return false;
 
     final path = options.path;

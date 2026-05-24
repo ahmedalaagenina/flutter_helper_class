@@ -89,6 +89,8 @@ class NetworkHelper {
     ]);
 
     dio.interceptors.addAll([
+      // Must be first — kills duplicates before auth/retry/logging.
+      DuplicateRequestInterceptor(),
       AuthInterceptor(
         prefs: _prefs,
         tokenStore: _tokenStore,

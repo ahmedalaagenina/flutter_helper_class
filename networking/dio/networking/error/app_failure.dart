@@ -34,7 +34,6 @@ class NoCachedDataFailure extends AppFailure {
   ]);
 }
 
-// Inside your failures file alongside NetworkFailure, etc.
 class OfflineQueuedFailure extends AppFailure {
   final String? syncId;
   const OfflineQueuedFailure({
@@ -51,4 +50,12 @@ class UnknownFailure extends AppFailure {
     super.code,
     super.data,
   ]);
+}
+
+/// Sentinel failure for duplicate requests that were silently dropped
+/// by [DuplicateRequestInterceptor]. This failure carries no user-facing
+/// message and should be intercepted by [BaseBloc.safeHandle] without
+/// emitting any state change.
+class DuplicateRequestFailure extends AppFailure {
+  const DuplicateRequestFailure() : super('Duplicate request ignored.', null);
 }
