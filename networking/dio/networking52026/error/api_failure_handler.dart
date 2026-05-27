@@ -3,12 +3,21 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:idara_driver/core/networking/error/server_message_extractor.dart';
 import 'package:idara_driver/core/networking/networking.dart';
 import 'package:idara_driver/generated/l10n.dart';
 import 'package:idara_driver/core/util/app_log.dart';
 
 class ApiFailureHandler {
   ApiFailureHandler._();
+
+  /// Pluggable strategy for pulling a user-facing message out of a server
+  /// error payload. Override at app boot to match a non-standard backend:
+  /// ```dart
+  /// ApiFailureHandler.messageExtractor = MyBackendExtractor();
+  /// ```
+  static ServerMessageExtractor messageExtractor =
+      const DefaultServerMessageExtractor();
 
   /// Entry point to handle and convert any thrown error to a [Failure].
   static AppFailure handle(dynamic error) {
@@ -101,44 +110,11 @@ class ApiFailureHandler {
     }
   }
 
-  /// Extracts human-readable message from a server response.
+  /// Extracts human-readable message from a server response via the
+  /// pluggable [messageExtractor]. Falls back to a localized default.
   static String _extractMessage(dynamic data) {
-    try {
-      if (data is Map<String, dynamic>) {
-        if (data.containsKey('errors')) {
-          final errors = data['errors'];
-          if (errors is Map) {
-            for (final value in errors.values) {
-              if (value is List && value.isNotEmpty) {
-                final firstMessage = value.first?.toString() ?? '';
-                if (firstMessage.isNotEmpty) {
-                  return firstMessage;
-                }
-              }
-            }
-          }
-        }
-
-        if (data.containsKey('message') && data['message'] != null) {
-          final message = data['message'].toString();
-          if (message.isNotEmpty) return message;
-        }
-
-        if (data.containsKey('error')) {
-          final error = data['error'];
-
-          if (error is String && error.isNotEmpty) {
-            return error;
-          }
-
-          if (error is Map && error.containsKey('message')) {
-            final msg = error['message']?.toString() ?? '';
-            if (msg.isNotEmpty) return msg;
-          }
-        }
-      }
-    } catch (_) {}
-
+    final extracted = messageExtractor.extract(data);
+    if (extracted != null && extracted.isNotEmpty) return extracted;
     return S.current.somethingWentWrong;
   }
 

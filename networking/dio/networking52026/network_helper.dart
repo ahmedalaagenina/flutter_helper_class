@@ -56,14 +56,17 @@ class NetworkHelper {
   final SharedPreferences _prefs;
   final SyncQueue? _syncQueue;
   final void Function()? _onForceLogout;
+  final void Function(TelemetryEvent)? _onTelemetry;
 
   NetworkHelper(
     this._tokenStore,
     this._prefs, {
     SyncQueue? syncQueue,
     void Function()? onForceLogout,
+    void Function(TelemetryEvent)? onTelemetry,
   }) : _syncQueue = syncQueue,
-       _onForceLogout = onForceLogout;
+       _onForceLogout = onForceLogout,
+       _onTelemetry = onTelemetry;
 
   Future<Dio> createDio({
     int defaultMaxRetries = 3,
@@ -95,8 +98,17 @@ class NetworkHelper {
     ]);
 
     dio.interceptors.addAll([
-      // Must be first — kills duplicates before auth/retry/logging.
+      // 1. Telemetry FIRST — stamps start time, observes everything below it.
+      if (_onTelemetry != null) TelemetryInterceptor(onEvent: _onTelemetry),
+
+      // 2. Idempotency — generates/forwards Idempotency-Key header.
+      //    Must run BEFORE Duplicate so the key is set even for first attempt.
+      IdempotencyInterceptor(),
+
+      // 3. Kills duplicates before auth/retry/logging.
       DuplicateRequestInterceptor(),
+
+      // 4. Auth.
       AuthInterceptor(
         prefs: _prefs,
         tokenStore: _tokenStore,
@@ -105,17 +117,17 @@ class NetworkHelper {
         onForceLogout: _onForceLogout,
       ),
 
-      // ✅ Cache BEFORE offline sync — on network error, serves stale cache
+      // 5. Cache BEFORE offline sync — on network error, serves stale cache.
       DioCacheInterceptor(options: CacheService.instance.defaultOptions),
 
-      // ✅ Retry BEFORE offline sync — exhaust retries first
+      // 6. Retry BEFORE offline sync — exhaust retries first.
       RetryInterceptor(
         dio: dio,
         maxRetries: defaultMaxRetries,
         initialDelay: defaultRetryDelay,
       ),
 
-      // ✅ Only queues if cache also missed AND all retries failed
+      // 7. Only queues if cache also missed AND all retries failed.
       if (_syncQueue != null)
         OfflineSyncInterceptor(
           queue: _syncQueue,
@@ -145,6 +157,60 @@ class NetworkHelper {
     }
 
     return dio;
+  }
+
+  /// Creates a dedicated, lightweight Dio for [SyncServiceManager] to
+  /// replay queued requests with. Only Auth + Retry — no duplicate
+  /// detection, no cache, no offline-sync (avoids re-queue loops).
+  ///
+  /// AuthInterceptor here uses the same [refreshDio] cycle, so a stale
+  /// token in a replay is auto-refreshed instead of failing the queue.
+  Future<Dio> createReplayDio({
+    int defaultMaxRetries = 3,
+    Duration defaultRetryDelay = const Duration(seconds: 2),
+  }) async {
+    final baseOptions = BaseOptions(
+      baseUrl: ApiConstant.baseUrl,
+      followRedirects: true,
+      receiveDataWhenStatusError: true,
+      connectTimeout: const Duration(seconds: 60),
+      receiveTimeout: const Duration(seconds: 60),
+      headers: {'Connection': 'keep-alive'},
+    );
+
+    final replayDio = Dio(baseOptions);
+    final refreshDio = Dio(baseOptions);
+    refreshDio.interceptors.add(
+      RetryInterceptor(
+        dio: refreshDio,
+        maxRetries: defaultMaxRetries,
+        initialDelay: defaultRetryDelay,
+      ),
+    );
+
+    replayDio.interceptors.addAll([
+      if (_onTelemetry != null) TelemetryInterceptor(onEvent: _onTelemetry),
+      IdempotencyInterceptor(),
+      AuthInterceptor(
+        prefs: _prefs,
+        tokenStore: _tokenStore,
+        dio: replayDio,
+        refreshDio: refreshDio,
+        onForceLogout: _onForceLogout,
+      ),
+      RetryInterceptor(
+        dio: replayDio,
+        maxRetries: defaultMaxRetries,
+        initialDelay: defaultRetryDelay,
+      ),
+      if (kDebugMode)
+        PrettyDioLogger(requestHeader: true, requestBody: true),
+    ]);
+
+    if (!kIsWeb) {
+      replayDio.httpClientAdapter = _setupProxy();
+    }
+    return replayDio;
   }
 
   /// Configures HTTP client adapter with SSL settings

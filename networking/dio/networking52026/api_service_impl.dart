@@ -1,11 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_esign/core/networking/networking.dart';
+import 'package:idara_driver/core/networking/networking.dart';
 
-class ApiService implements IApiService {
+class ApiServiceImpl implements ApiService {
   final Dio _dio;
 
-  ApiService(this._dio);
+  ApiServiceImpl(this._dio);
 
   /// Registering Dio and CancelToken
   //  getIt.registerLazySingleton(() => CancelToken());
@@ -266,6 +266,12 @@ class ApiService implements IApiService {
 
     options.extra!['recreateFormData'] = () => recreateFormData(files, data);
 
+    // Stash a serializable spec so OfflineSyncInterceptor can persist this
+    // upload across an app restart. Bytes-only files (web) are skipped
+    // (can't survive Hive); pure-path uploads (mobile) are queueable.
+    options.extra![OfflineSyncInterceptor.multipartSpecKey] =
+        _buildMultipartSpec(files, data);
+
     final formData = await recreateFormData(files, data);
 
     final response = await _dio.request<T>(
@@ -278,6 +284,52 @@ class ApiService implements IApiService {
       onReceiveProgress: onReceiveProgress,
     );
     return response;
+  }
+
+  /// Builds a JSON-serializable spec of a multipart request so that
+  /// [OfflineSyncInterceptor] can persist it for later replay.
+  ///
+  /// File entries with a real `filePath` are recorded as
+  /// `{'filePath': …, 'filename': …}`. Bytes-only files are recorded
+  /// with a `null` filePath so the interceptor knows to skip the queue.
+  Map<String, dynamic> _buildMultipartSpec(
+    Map<String, dynamic>? files,
+    Map<String, dynamic>? data,
+  ) {
+    final filesSpec = <String, dynamic>{};
+    if (files != null) {
+      for (final entry in files.entries) {
+        filesSpec[entry.key] = _fileDataToSpec(entry.value);
+      }
+    }
+    return {
+      'files': filesSpec,
+      // Only keep JSON-safe scalars/maps/lists from data; drop FileData.
+      'data': _jsonSafeMap(data),
+    };
+  }
+
+  Map<String, dynamic>? _fileDataToSpec(dynamic value) {
+    if (value is FileData) {
+      return {
+        'filePath': value.filePath, // null on web/bytes — handled by capture
+        'filename': value.filename,
+        if (value.contentType != null)
+          'contentType': [value.contentType!.$1, value.contentType!.$2],
+      };
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _jsonSafeMap(Map<String, dynamic>? src) {
+    if (src == null) return null;
+    final out = <String, dynamic>{};
+    for (final entry in src.entries) {
+      final v = entry.value;
+      if (v is FileData) continue; // dropped — captured in filesSpec
+      out[entry.key] = v;
+    }
+    return out;
   }
 
   Future<FormData> recreateFormData(
@@ -303,7 +355,7 @@ class ApiService implements IApiService {
     return FormData.fromMap({...processedData, ...processedFiles});
   }
 
-  /// Recursively processes values to convert FileData to MultipartFile
+  /// Recursively processes values to convert FileData to MultipartFile.
   Future<dynamic> _processValue(dynamic value) async {
     if (value is FileData) {
       return await _createMultipartFile(

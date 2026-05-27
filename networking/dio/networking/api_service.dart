@@ -4,7 +4,7 @@ import 'package:idara_driver/core/networking/networking.dart';
 
 /// Abstract class defining the interface for API services
 
-abstract class IApiService {
+abstract class ApiService {
   // GET method
   Future<Response<T>> get<T>(
     String path, {
