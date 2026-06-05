@@ -1,9 +1,8 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:go_router/go_router.dart';
-import 'package:idara_esign/config/routes/app_router.dart';
-import 'package:idara_esign/config/routes/route_names.dart';
+import 'package:idara_esign/core/notification_manager/notification_api.dart';
+import 'package:idara_esign/core/notification_manager/notification_navigator.dart';
 import 'package:idara_esign/core/services/logger_service.dart';
 
 import 'browser_notification_stub.dart'
@@ -51,15 +50,30 @@ class WebNotificationService {
     //    inactivity); the refresh stream lets us keep the backend in sync.
     final token = await getToken();
     debugPrint('[WebNotificationService] FCM token: $token');
+    if (token != null && token.isNotEmpty) {
+      await NotificationApi.registerDeviceToken(token);
+    }
     _messaging.onTokenRefresh.listen((newToken) {
       debugPrint('[WebNotificationService] token refresh: $newToken');
       // TODO: persist `newToken` to the backend.
+      NotificationApi.registerDeviceToken(newToken);
     });
 
     // 3. Live messages. `onMessage` fires when the tab is focused; the SW
     //    handles the rest. `onMessageOpenedApp` is a no-op on web today,
     //    kept for native-API parity.
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+    //
+    // `handleError` guards a known firebase_messaging_web bug: the JS SDK can
+    // emit a payload the plugin fails to convert to a RemoteMessage
+    // ("TypeError: map[$_get] is not a function"). Without this, that parse
+    // failure surfaces as an uncaught zone error in the console.
+    FirebaseMessaging.onMessage
+        .handleError(
+          (Object error, StackTrace stackTrace) => AppLog.e(
+            '[WebNotificationService] onMessage parse failed (ignored): $error',
+          ),
+        )
+        .listen(_handleForegroundMessage);
     FirebaseMessaging.onMessageOpenedApp.listen(_handleOpenedMessage);
 
     // 4. Click bridge. SW-dispatched notifications don't fire
