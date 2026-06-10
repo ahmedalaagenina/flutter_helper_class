@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:math';
@@ -21,22 +22,33 @@ BiometricAuthService createPlatformBiometricAuthService() =>
 /// ## How it works (and its limits)
 ///
 /// This implementation is **self-contained**: it does not require any helper
-/// script in `web/index.html` and it does not talk to a server. On
-/// [authenticate] it issues a WebAuthn *registration* (`credentials.create`)
-/// with a platform authenticator and `userVerification`, which makes the
-/// browser prompt the user for their biometric / device PIN. We only care that
-/// the user passed that local verification — the generated credential is not
-/// persisted or sent anywhere.
+/// script in `web/index.html` and it does not talk to a server. The *first*
+/// [authenticate] runs a WebAuthn registration (`credentials.create`) — the
+/// browser shows its "save a passkey" UI once — and the resulting credential
+/// ID is kept in `localStorage`. Every later call runs an assertion
+/// (`credentials.get`) against that credential, so the user only sees the OS
+/// "verify your identity" prompt, and no new passkeys pile up on the device.
 ///
-/// This proves *user presence on this device*, which is exactly what a
-/// "confirm before signing" gate needs. It is **not** a cryptographic identity
-/// assertion: for that you need a server-issued challenge and a stored,
-/// registered credential. If you later add a backend WebAuthn flow, swap this
-/// class out behind [BiometricAuthService] without touching call sites.
+/// We only care that the user passed local verification — the assertion is
+/// never sent to a server. This proves *user presence on this device*, which
+/// is exactly what a "confirm before signing" gate needs. It is **not** a
+/// cryptographic identity assertion: for that you need a server-issued
+/// challenge and a server-side registered credential. If you later add a
+/// backend WebAuthn flow, swap this class out behind [BiometricAuthService]
+/// without touching call sites.
+///
+/// If the stored passkey was deleted from the OS, the assertion rejects with
+/// `NotAllowedError` — the same error as the user canceling, so the two cannot
+/// be told apart. After [_maxConsecutiveAssertFailures] consecutive
+/// cancels/failures we drop the stored ID and the next call re-registers.
 ///
 /// WebAuthn requires a secure context (HTTPS or `localhost`). On unsupported
 /// browsers every method degrades gracefully to "unavailable".
 class BiometricAuthWebImpl implements BiometricAuthService {
+  static const _credentialIdKey = 'biometric_auth.credential_id';
+  static const _assertFailuresKey = 'biometric_auth.assert_failures';
+  static const _maxConsecutiveAssertFailures = 2;
+
   final Random _random;
 
   BiometricAuthWebImpl({Random? random}) : _random = random ?? Random.secure();
@@ -70,6 +82,87 @@ class BiometricAuthWebImpl implements BiometricAuthService {
       return const BiometricAuthUnavailable();
     }
 
+    final credentialId = _readStored(_credentialIdKey);
+    if (credentialId != null) {
+      final result = await _assertExisting(credentialId, biometricOnly);
+      if (result != null) return result;
+      // The stored credential is unusable — fall through and re-register.
+    }
+    return _registerNew(localizedReason, biometricOnly);
+  }
+
+  /// Verifies the user against the passkey registered by a previous call
+  /// (the OS shows its "verify your identity" prompt). Returns `null` when the
+  /// stored credential is unusable and registration should run instead.
+  Future<BiometricAuthResult?> _assertExisting(
+    String credentialId,
+    bool biometricOnly,
+  ) async {
+    final Uint8List rawId;
+    try {
+      rawId = base64Url.decode(credentialId);
+    } catch (_) {
+      _writeStored(_credentialIdKey, null);
+      return null;
+    }
+
+    try {
+      final credential = await web.window.navigator.credentials
+          .get(
+            web.CredentialRequestOptions(
+              publicKey: web.PublicKeyCredentialRequestOptions(
+                challenge: _randomBytes(32).toJS,
+                allowCredentials: <web.PublicKeyCredentialDescriptor>[
+                  web.PublicKeyCredentialDescriptor(
+                    type: 'public-key',
+                    id: rawId.toJS,
+                    transports: <JSString>['internal'.toJS].toJS,
+                  ),
+                ].toJS,
+                userVerification: biometricOnly ? 'required' : 'preferred',
+                timeout: 60000,
+              ),
+            ),
+          )
+          .toDart;
+
+      _writeStored(_assertFailuresKey, null);
+      return credential != null
+          ? const BiometricAuthSuccess()
+          : const BiometricAuthFailed();
+    } catch (e) {
+      final result = _mapError(e);
+      if (result is BiometricAuthUnavailable) {
+        // e.g. InvalidStateError — the passkey no longer exists on this
+        // authenticator. Drop it and re-register within this same call.
+        _writeStored(_credentialIdKey, null);
+        return null;
+      }
+      if (result is BiometricAuthCanceled) {
+        // A deleted passkey also rejects with NotAllowedError, which is
+        // indistinguishable from the user canceling. Tolerate a couple of
+        // cancels, then assume the passkey is gone so the next call
+        // re-registers instead of failing forever.
+        final failures =
+            (int.tryParse(_readStored(_assertFailuresKey) ?? '') ?? 0) + 1;
+        if (failures >= _maxConsecutiveAssertFailures) {
+          _writeStored(_credentialIdKey, null);
+          _writeStored(_assertFailuresKey, null);
+        } else {
+          _writeStored(_assertFailuresKey, '$failures');
+        }
+      }
+      return result;
+    }
+  }
+
+  /// Registers a passkey with the platform authenticator (the browser shows
+  /// its "create/save a passkey" UI once) and stores its credential ID so
+  /// later calls can assert against it instead of creating another one.
+  Future<BiometricAuthResult> _registerNew(
+    String localizedReason,
+    bool biometricOnly,
+  ) async {
     try {
       final options = web.CredentialCreationOptions(
         publicKey: web.PublicKeyCredentialCreationOptions(
@@ -100,9 +193,13 @@ class BiometricAuthWebImpl implements BiometricAuthService {
           .create(options)
           .toDart;
 
-      return credential != null
-          ? const BiometricAuthSuccess()
-          : const BiometricAuthFailed();
+      if (credential == null) return const BiometricAuthFailed();
+
+      final rawId = (credential as web.PublicKeyCredential).rawId.toDart
+          .asUint8List();
+      _writeStored(_credentialIdKey, base64UrlEncode(rawId));
+      _writeStored(_assertFailuresKey, null);
+      return const BiometricAuthSuccess();
     } catch (e) {
       return _mapError(e);
     }
@@ -138,6 +235,24 @@ class BiometricAuthWebImpl implements BiometricAuthService {
       return (error.getProperty('name'.toJS) as JSString?)?.toDart;
     }
     return null;
+  }
+
+  String? _readStored(String key) {
+    try {
+      return web.window.localStorage.getItem(key);
+    } catch (_) {
+      // Storage can be blocked (e.g. privacy settings); degrade to the
+      // register-every-time behavior rather than failing.
+      return null;
+    }
+  }
+
+  void _writeStored(String key, String? value) {
+    try {
+      value == null
+          ? web.window.localStorage.removeItem(key)
+          : web.window.localStorage.setItem(key, value);
+    } catch (_) {}
   }
 
   Uint8List _randomBytes(int length) {

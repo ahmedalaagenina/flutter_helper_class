@@ -80,3 +80,9 @@ platform authenticator and checks the local user-verification passed). It is
 and a registered credential. If you add a backend WebAuthn flow later, replace
 `BiometricAuthWebImpl` behind the `BiometricAuthService` interface without
 touching any call sites.
+
+The first `authenticate()` on a device registers a passkey (the browser shows
+its "save a passkey" UI once) and stores the credential ID in `localStorage`.
+Later calls assert against that passkey, so the user only sees the OS "verify
+your identity" prompt. Clearing site data (or the OS deleting the passkey)
+triggers a one-time re-registration on the next call.

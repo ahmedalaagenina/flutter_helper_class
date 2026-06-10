@@ -34,26 +34,24 @@ class BiometricSignGate {
 
     switch (result) {
       case BiometricAuthSuccess():
-      case BiometricAuthUnavailable():
         return true;
       case BiometricAuthCanceled():
       case BiometricAuthFailed():
         AppSnackBars.warning(
-          S.of(context).biometricRequiredToSign,
+          S.of(context).biometricRequiredToContinue,
           context: context,
         );
         return false;
       case BiometricAuthLockedOut():
-        AppSnackBars.error(
-          S.of(context).biometricLockedOut,
-          context: context,
-        );
+        AppSnackBars.error(S.of(context).biometricLockedOut, context: context);
         return false;
       case BiometricAuthError():
         AppSnackBars.error(
           S.of(context).biometricAuthErrorTryAgain,
           context: context,
         );
+        return false;
+      case BiometricAuthUnavailable():
         return false;
     }
   }
