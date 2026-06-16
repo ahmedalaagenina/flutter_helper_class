@@ -157,13 +157,36 @@ class FirebaseSocialAuthService implements SocialAuthService {
     try {
       final provider = MicrosoftAuthProvider()
         ..setCustomParameters({'prompt': 'select_account'});
-      return kIsWeb
-          ? await _firebaseAuth.signInWithPopup(provider)
-          : await _firebaseAuth.signInWithProvider(provider);
+      if (kIsWeb) {
+        // `signInWithPopup` is unusable for Microsoft personal accounts on web:
+        // login.live.com sends COOP headers that sever the popup<->app channel,
+        // causing "popup-closed-by-user" / "Pending promise was never set".
+        // Use a full-page redirect; the result is collected on the next app
+        // load via [getRedirectResult].
+        await _firebaseAuth.signInWithRedirect(provider);
+        // The browser navigates away here; keep the caller in "loading" until
+        // it does (returning would surface a bogus result/error).
+        return Completer<UserCredential>().future;
+      }
+      return await _firebaseAuth.signInWithProvider(provider);
     } on FirebaseAuthException catch (e) {
       throw SocialAuthException(e.message ?? e.code, code: e.code);
     } catch (e) {
       throw SocialAuthException('Microsoft sign-in failed: $e');
+    }
+  }
+
+  @override
+  Future<UserCredential?> getRedirectResult() async {
+    if (!kIsWeb) return null;
+    try {
+      final result = await _firebaseAuth.getRedirectResult();
+      // `user` is null when there is no pending redirect to consume.
+      return result.user == null ? null : result;
+    } on FirebaseAuthException catch (e) {
+      throw SocialAuthException(e.message ?? e.code, code: e.code);
+    } catch (e) {
+      throw SocialAuthException('Microsoft redirect sign-in failed: $e');
     }
   }
 

@@ -42,6 +42,11 @@ abstract class SocialAuthService {
   /// Convenience dispatcher for a dynamically selected [provider].
   Future<UserCredential> signIn(SocialAuthProvider provider);
 
+  /// Web only: returns the pending redirect sign-in result (e.g. Microsoft via
+  /// `signInWithRedirect`), or `null` when there is no pending redirect. Always
+  /// returns `null` on native platforms. Call once on app startup.
+  Future<UserCredential?> getRedirectResult();
+
   /// Signs out of Firebase and any native provider sessions (e.g. Google).
   Future<void> signOut();
 }

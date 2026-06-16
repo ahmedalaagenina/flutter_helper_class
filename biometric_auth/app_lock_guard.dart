@@ -245,20 +245,25 @@ class _AppLockGuardState extends State<AppLockGuard>
 
   @override
   Widget build(BuildContext context) {
-    if (_status == _LockStatus.unlocked) return widget.child;
-
+    // IMPORTANT: Always keep widget.child inside the same Stack so the widget
+    // tree structure is stable across lock/unlock transitions. If we returned
+    // widget.child directly when unlocked, the structural change (Stack →
+    // bare child) would cause Flutter to unmount and remount the entire child
+    // subtree — destroying the GoRouter navigator state and resetting
+    // navigation back to the initial route.
     return Stack(
       fit: StackFit.expand,
       children: [
         widget.child,
-        _LockOverlay(
-          busy: _status == _LockStatus.authenticating,
-          // Transient cover: privacy blur only. It lifts by itself on resume
-          // (or escalates to a prompt), so showing an unlock CTA would just
-          // flash misleading UI during snapshots and system overlays.
-          showUnlockUi: _status != _LockStatus.covered,
-          onUnlock: _authenticate,
-        ),
+        if (_status != _LockStatus.unlocked)
+          _LockOverlay(
+            busy: _status == _LockStatus.authenticating,
+            // Transient cover: privacy blur only. It lifts by itself on resume
+            // (or escalates to a prompt), so showing an unlock CTA would just
+            // flash misleading UI during snapshots and system overlays.
+            showUnlockUi: _status != _LockStatus.covered,
+            onUnlock: _authenticate,
+          ),
       ],
     );
   }
