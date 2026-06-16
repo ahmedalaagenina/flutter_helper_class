@@ -230,6 +230,39 @@ class SharedFileService {
   /// On iOS, opening a document via "Open in..." can arrive as a `file://`
   /// route instead of plugin media. GoRouter blocks that route and forwards it
   /// here so the same pending-file flow can continue.
+  /// ```dart
+  /// final router = GoRouter(
+  ///   navigatorKey: rootNavigatorKey,
+  ///   debugLogDiagnostics: true,
+  ///   observers: observers,
+  ///   initialLocation: Routes.initialRoute,
+  ///   overridePlatformDefaultLocation: _shouldOverridePlatformDefaultLocation(),
+  ///   onEnter: _onEnter,
+  ///   refreshListenable: GoRouterRefreshStream(authBloc.stream.distinct()),
+  ///   redirect: redirector.redirect,
+  ///   routes: _routes(),
+  /// );
+  ///
+  /// static OnEnterResult _onEnter(
+  ///   BuildContext context,
+  ///   GoRouterState currentState,
+  ///   GoRouterState nextState,
+  ///   GoRouter router,
+  /// ) {
+  ///   if (_isExternalFileIntentUri(nextState.uri)) {
+  ///     AppLog.w('GoRouter: blocked external file route - ${nextState.uri}');
+  ///     unawaited(getIt<SharedFileService>().handleExternalUri(nextState.uri));
+  ///     return const Block.stop();
+  ///   }
+  ///
+  ///   return const Allow();
+  /// }
+  /// static bool _isExternalFileIntentUri(Uri uri) {
+  ///   final scheme = uri.scheme.toLowerCase();
+  ///   return scheme == 'content' || scheme == 'file';
+  /// }
+  /// ```
+
   Future<bool> handleExternalUri(Uri uri) async {
     if (kIsWeb || uri.scheme.toLowerCase() != 'file') return false;
 
