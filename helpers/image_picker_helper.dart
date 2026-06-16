@@ -141,7 +141,7 @@ UI decides how to display these.
 ═══════════════════════════════════════════════════════════════════════
 */
 
-class ImagePickerHelperClean {
+class ImagePickerHelper {
   static final ImagePicker _picker = ImagePicker();
 
   // ─────────────────────── Public API ───────────────────────
@@ -215,7 +215,7 @@ class ImagePickerHelperClean {
         }
       }
 
-      // لو كل الملفات فشلت نرجع Failure واحدة (أو نرجع list failures)
+      // If all files failed, return a single Failure (or return the list of failures)
       if (results.isEmpty) {
         return MultiPickOutcome.failure(
           failures.isNotEmpty
@@ -313,7 +313,7 @@ class ImagePickerHelperClean {
 
     final maxBytes = options.maxSizeBytes;
 
-    // لو مفيش limit ولا processing → رجّع as-is
+    // If there is no limit and no processing required, return as-is
     if ((maxBytes == null || originalSize <= maxBytes) &&
         options.forceProcessEvenIfUnderLimit == false) {
       return PickResult(
@@ -325,7 +325,7 @@ class ImagePickerHelperClean {
       );
     }
 
-    // لو تحت الحد لكن forceProcessEvenIfUnderLimit = true → اعمل pass واحدة
+    // If under the limit but forceProcessEvenIfUnderLimit is true, run a single compression pass
     if ((maxBytes == null || originalSize <= maxBytes) &&
         options.forceProcessEvenIfUnderLimit == true) {
       final processed = await _compressOnce(
@@ -337,7 +337,7 @@ class ImagePickerHelperClean {
       );
 
       if (processed == null) {
-        // best effort: رجّع الأصل
+        // best effort: return the original
         return PickResult(
           file: file,
           originalSizeBytes: originalSize,
@@ -362,7 +362,7 @@ class ImagePickerHelperClean {
       );
     }
 
-    // هنا: أكبر من maxSizeBytes → لازم نقلل
+    // If the size exceeds maxSizeBytes, we must reduce it
     if (maxBytes != null && originalSize > maxBytes) {
       final reduced = await _reduceToFit(
         originalBytes: originalBytes,
@@ -411,11 +411,11 @@ class ImagePickerHelperClean {
     required ImagePickOptions options,
   }) async {
     if (kIsWeb && options.enforceMaxSizeOnWebWithoutCompression) {
-      // لا توجد محاولة ضغط هنا (صارم على الويب)
+      // No compression attempt here (strict on web)
       return null;
     }
 
-    // لو web وعايز best-effort فقط بدون ضغط حقيقي: رجّع null (UI يرفض/يقبل)
+    // If on web and best-effort only is desired without actual compression, return null (letting the UI accept or reject)
     if (kIsWeb) return null;
 
     int quality = options.initialQuality.clamp(10, 100);
@@ -619,7 +619,7 @@ class ImagePickOptions {
   /// If true: return smallest result even if it didn't hit maxSizeBytes (mobile).
   final bool returnBestEffortOnFailure;
 
-  /// If true: even لو الصورة أصلاً تحت الحد، اعمل processing مرة واحدة (تحويل/resize).
+  /// If true: even if the image is originally under the limit, process it once (convert/resize).
   final bool forceProcessEvenIfUnderLimit;
 
   /// On web: reject if > maxSizeBytes (default true)
@@ -757,7 +757,7 @@ class MultiPickOutcome {
   final List<PickResult>? results;
   final PickFailure? failure;
 
-  /// لو بعض الملفات فشلت وبعضها نجح → failures هنا
+  /// If some files failed and others succeeded, they will be listed in [failures]
   final List<PickFailure> failures;
 
   const MultiPickOutcome._({
