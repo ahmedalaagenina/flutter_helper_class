@@ -1,4 +1,8 @@
+// cached_network_image: ^3.4.1
+// cached_network_image_platform_interface: ^4.1.1
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
 
 class AppCachedImage extends StatelessWidget {
@@ -76,6 +80,11 @@ class AppCachedImage extends StatelessWidget {
         ? CachedNetworkImage(
             imageUrl: url!,
             httpHeaders: _effectiveHeaders,
+            // On web the default renders via an HTML <img> element, which
+            // ignores httpHeaders and breaks authenticated endpoints
+            // ("EncodingError: source image cannot be decoded"). HttpGet
+            // fetches the bytes with the headers and decodes them instead.
+            imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet,
             fit: fit,
             width: width,
             height: height,
@@ -83,7 +92,10 @@ class AppCachedImage extends StatelessWidget {
             memCacheHeight: memCacheHeight,
             fadeInDuration: fadeInDuration,
             placeholder: (context, _) => _buildPlaceholder(context),
-            errorWidget: (context, _, _) => _buildError(context),
+            errorWidget: (context, failedUrl, error) {
+              debugPrint('AppCachedImage failed: $failedUrl -> $error');
+              return _buildError(context);
+            },
           )
         : SizedBox(width: width, height: height, child: _buildError(context));
 
