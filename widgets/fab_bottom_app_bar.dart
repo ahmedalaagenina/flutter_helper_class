@@ -214,7 +214,6 @@ class _CenterSpacer extends StatelessWidget {
 //     final s = S.of(context);
 
 //     return Scaffold(
-//       extendBody: true,
 //       extendBodyBehindAppBar: true,
 //       body: isBiggerThanMobile
 //           ? Padding(
@@ -236,34 +235,39 @@ class _CenterSpacer extends StatelessWidget {
 
 //       bottomNavigationBar: isBiggerThanMobile
 //           ? null
-//           : FABBottomAppBar(
-//               selectedIndex: navigationShell.currentIndex.clamp(0, 3),
-//               onTabSelected: (i) => _onTap(context, i),
-//               backgroundColor: context.colors.surface,
-//               color: context.colors.onSurfaceVariant,
-//               selectedColor: context.colors.primary,
-//               items: [
-//                 FABBottomAppBarItem(
-//                   iconData: Icons.home_outlined,
-//                   selectedIconData: Icons.home,
-//                   text: s.navHome,
-//                 ),
-//                 FABBottomAppBarItem(
-//                   iconData: Icons.description_outlined,
-//                   selectedIconData: Icons.description,
-//                   text: s.navDocs,
-//                 ),
-//                 FABBottomAppBarItem(
-//                   iconData: Icons.group_outlined,
-//                   selectedIconData: Icons.group,
-//                   text: s.navParticipants,
-//                 ),
-//                 FABBottomAppBarItem(
-//                   iconData: Icons.person_outline,
-//                   selectedIconData: Icons.person,
-//                   text: s.navAccount,
-//                 ),
-//               ],
+//           : MediaQuery.removePadding(
+//               context: context,
+//               removeBottom: context.isIOS,
+//               removeTop: true,
+//               child: FABBottomAppBar(
+//                 selectedIndex: navigationShell.currentIndex.clamp(0, 3),
+//                 onTabSelected: (i) => _onTap(context, i),
+//                 backgroundColor: context.colors.surface,
+//                 color: context.colors.onSurfaceVariant,
+//                 selectedColor: context.colors.primary,
+//                 items: [
+//                   FABBottomAppBarItem(
+//                     iconData: Icons.home_outlined,
+//                     selectedIconData: Icons.home,
+//                     text: s.navHome,
+//                   ),
+//                   FABBottomAppBarItem(
+//                     iconData: Icons.description_outlined,
+//                     selectedIconData: Icons.description,
+//                     text: s.navDocs,
+//                   ),
+//                   FABBottomAppBarItem(
+//                     iconData: Icons.group_outlined,
+//                     selectedIconData: Icons.group,
+//                     text: s.navParticipants,
+//                   ),
+//                   FABBottomAppBarItem(
+//                     iconData: Icons.person_outline,
+//                     selectedIconData: Icons.person,
+//                     text: s.navAccount,
+//                   ),
+//                 ],
+//               ),
 //             ),
 //     );
 //   }
