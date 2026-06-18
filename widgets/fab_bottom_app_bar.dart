@@ -194,25 +194,20 @@ class _CenterSpacer extends StatelessWidget {
 // import 'package:idara_esign/features/transactions/presentation/bloc/transactions_bloc.dart';
 // import 'package:idara_esign/generated/l10n.dart';
 
-// class ScaffoldWithNavBar extends StatefulWidget {
+// class ScaffoldWithNavBar extends StatelessWidget {
 //   const ScaffoldWithNavBar({required this.navigationShell, super.key});
 
 //   final StatefulNavigationShell navigationShell;
 
-//   @override
-//   State<ScaffoldWithNavBar> createState() => _ScaffoldWithNavBarState();
-// }
-
-// class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
 //   @override
 //   Widget build(BuildContext context) {
 //     final isBiggerThanMobile = context.isBiggerThanMobile;
 //     const mobileTabsCount = 4;
 
 //     if (!isBiggerThanMobile &&
-//         widget.navigationShell.currentIndex >= mobileTabsCount) {
+//         navigationShell.currentIndex >= mobileTabsCount) {
 //       WidgetsBinding.instance.addPostFrameCallback((_) {
-//         widget.navigationShell.goBranch(0);
+//         navigationShell.goBranch(0);
 //       });
 //     }
 
@@ -224,9 +219,9 @@ class _CenterSpacer extends StatelessWidget {
 //       body: isBiggerThanMobile
 //           ? Padding(
 //               padding: EdgeInsets.symmetric(horizontal: context.width * 0.05),
-//               child: widget.navigationShell,
+//               child: navigationShell,
 //             )
-//           : SafeArea(bottom: false, child: widget.navigationShell),
+//           : SafeArea(bottom: false, child: navigationShell),
 
 //       floatingActionButtonLocation: isBiggerThanMobile
 //           ? FloatingActionButtonLocation.endFloat
@@ -234,7 +229,7 @@ class _CenterSpacer extends StatelessWidget {
 //       floatingActionButton: isBiggerThanMobile
 //           ? _buildDesktopFAB(context)
 //           : _MobileFAB(
-//               currentIndex: widget.navigationShell.currentIndex,
+//               currentIndex: navigationShell.currentIndex,
 //               onPressed: () => _onMobileFabPressed(context),
 //               color: context.colors.primary,
 //             ),
@@ -242,7 +237,7 @@ class _CenterSpacer extends StatelessWidget {
 //       bottomNavigationBar: isBiggerThanMobile
 //           ? null
 //           : FABBottomAppBar(
-//               selectedIndex: widget.navigationShell.currentIndex.clamp(0, 3),
+//               selectedIndex: navigationShell.currentIndex.clamp(0, 3),
 //               onTabSelected: (i) => _onTap(context, i),
 //               backgroundColor: context.colors.surface,
 //               color: context.colors.onSurfaceVariant,
@@ -284,14 +279,14 @@ class _CenterSpacer extends StatelessWidget {
 //         context.read<ParticipantsBloc>().add(const ParticipantsRefreshEvent());
 //     }
 
-//     widget.navigationShell.goBranch(
+//     navigationShell.goBranch(
 //       index,
-//       initialLocation: index == widget.navigationShell.currentIndex,
+//       initialLocation: index == navigationShell.currentIndex,
 //     );
 //   }
 
 //   void _onMobileFabPressed(BuildContext context) {
-//     switch (widget.navigationShell.currentIndex) {
+//     switch (navigationShell.currentIndex) {
 //       case 2:
 //         _navigateToAddParticipant(context);
 //       case 3:
@@ -336,7 +331,7 @@ class _CenterSpacer extends StatelessWidget {
 //   Widget? _buildDesktopFAB(BuildContext context) {
 //     final s = S.of(context);
 
-//     return switch (widget.navigationShell.currentIndex) {
+//     return switch (navigationShell.currentIndex) {
 //       0 => FloatingActionButton.extended(
 //         heroTag: 'fab',
 //         onPressed: () async {
