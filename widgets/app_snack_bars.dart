@@ -238,6 +238,7 @@ class AppSnackBars {
         );
       } catch (_) {}
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   static void showUndo({
