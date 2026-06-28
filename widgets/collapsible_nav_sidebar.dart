@@ -15,11 +15,17 @@ class NavItem extends NavEntry {
     required this.index,
     required this.icon,
     required this.label,
+    this.badgeCount,
+    this.isDanger = false,
+    this.onTap,
   });
 
   final int index;
   final IconData icon;
   final String label;
+  final int? badgeCount;
+  final bool isDanger;
+  final VoidCallback? onTap;
 }
 
 /// A collapsible group that contains [NavItem] children.
@@ -38,14 +44,14 @@ class NavGroup extends NavEntry {
 }
 
 // ─────────────────────────────────────────────
-// GroupedNavSidebar
+// CollapsibleNavSidebar
 // ─────────────────────────────────────────────
 
 /// A vertical sidebar with flat items and collapsible groups.
 ///
 /// Usage:
 /// ```dart
-/// GroupedNavSidebar(
+/// CollapsibleNavSidebar(
 ///   entries: [
 ///     NavItem(index: 0, icon: Icons.home, label: 'Home'),
 ///     NavGroup(
@@ -64,8 +70,8 @@ class NavGroup extends NavEntry {
 ///   footer: TextButton(onPressed: logout, child: Text('Logout')),
 /// )
 /// ```
-class GroupedNavSidebar extends StatefulWidget {
-  const GroupedNavSidebar({
+class CollapsibleNavSidebar extends StatefulWidget {
+  const CollapsibleNavSidebar({
     super.key,
     required this.entries,
     required this.selectedIndex,
@@ -106,15 +112,15 @@ class GroupedNavSidebar extends StatefulWidget {
   final Color? activeColor;
 
   @override
-  State<GroupedNavSidebar> createState() => _GroupedNavSidebarState();
+  State<CollapsibleNavSidebar> createState() => _CollapsibleNavSidebarState();
 }
 
-class _GroupedNavSidebarState extends State<GroupedNavSidebar> {
+class _CollapsibleNavSidebarState extends State<CollapsibleNavSidebar> {
   String? _expandedKey;
   int? _lastSyncedIndex;
 
   @override
-  void didUpdateWidget(GroupedNavSidebar old) {
+  void didUpdateWidget(CollapsibleNavSidebar old) {
     super.didUpdateWidget(old);
     // Auto-expand the group that contains the newly active index.
     _syncExpandedGroup();
@@ -247,38 +253,31 @@ class _NavItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveActiveColor = item.isDanger ? Colors.red : activeColor;
+    final iconColor = item.isDanger ? Colors.red : (active ? effectiveActiveColor : cs.onSurfaceVariant);
+    final textColor = item.isDanger ? Colors.red : (active ? effectiveActiveColor : cs.onSurface);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        onTap: item.onTap ?? onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: active
-                ? activeColor.withValues(alpha: 0.12)
+            color: active && !item.isDanger
+                ? effectiveActiveColor.withValues(alpha: 0.10)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             children: [
-              // Active indicator bar
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 3,
-                height: 22,
-                margin: const EdgeInsetsDirectional.only(end: 10),
-                decoration: BoxDecoration(
-                  color: active ? activeColor : Colors.transparent,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
               Icon(
                 item.icon,
-                size: 22,
-                color: active ? activeColor : cs.onSurfaceVariant,
+                size: 20,
+                color: iconColor,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -287,11 +286,27 @@ class _NavItemTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: active ? activeColor : cs.onSurface,
-                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                    color: textColor,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ),
+              if (item.badgeCount != null && item.badgeCount! > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${item.badgeCount}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -331,7 +346,7 @@ class _NavGroupTile extends StatelessWidget {
     final headerActive = _hasActiveChild || expanded;
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(10),
       child: Column(
         children: [
           // ── Group header ──────────────────────────────
@@ -342,8 +357,8 @@ class _NavGroupTile extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
+                  horizontal: 12,
+                  vertical: 10,
                 ),
                 decoration: BoxDecoration(
                   color: _hasActiveChild && !expanded
@@ -354,18 +369,18 @@ class _NavGroupTile extends StatelessWidget {
                   children: [
                     // Icon badge
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 32,
+                      height: 32,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: headerActive
-                            ? activeColor.withValues(alpha: 0.14)
+                            ? activeColor.withValues(alpha: 0.12)
                             : cs.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(9),
                       ),
                       child: Icon(
                         group.icon,
-                        size: 20,
+                        size: 18,
                         color: headerActive ? activeColor : cs.onSurfaceVariant,
                       ),
                     ),
@@ -379,7 +394,7 @@ class _NavGroupTile extends StatelessWidget {
                           context,
                         ).textTheme.titleMedium?.copyWith(
                           color: headerActive ? activeColor : cs.onSurface,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -530,26 +545,30 @@ class _NavChildTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveActiveColor = item.isDanger ? Colors.red : activeColor;
+    final iconColor = item.isDanger ? Colors.red : (active ? effectiveActiveColor : cs.onSurfaceVariant);
+    final textColor = item.isDanger ? Colors.red : (active ? effectiveActiveColor : cs.onSurface);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        onTap: item.onTap ?? onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
           decoration: BoxDecoration(
-            color: active
-                ? activeColor.withValues(alpha: 0.12)
+            color: active && !item.isDanger
+                ? effectiveActiveColor.withValues(alpha: 0.10)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             children: [
               Icon(
                 item.icon,
                 size: 18,
-                color: active ? activeColor : cs.onSurfaceVariant,
+                color: iconColor,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -558,18 +577,35 @@ class _NavChildTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: active ? activeColor : cs.onSurface,
+                    color: textColor,
                     fontWeight: active ? FontWeight.w700 : FontWeight.w600,
                   ),
                 ),
               ),
+              if (item.badgeCount != null && item.badgeCount! > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  margin: const EdgeInsetsDirectional.only(end: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${item.badgeCount}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               // Active dot
-              if (active)
+              if (active && !item.isDanger)
                 Container(
                   width: 6,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: activeColor,
+                    color: effectiveActiveColor,
                     shape: BoxShape.circle,
                   ),
                 ),
