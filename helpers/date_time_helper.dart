@@ -36,8 +36,9 @@ class DateTimeHelper {
     if (dateTime == null) {
       return DateFormat('EEEE, dd/MM/yyyy, hh:mm a').format(DateTime.now());
     }
-    return DateFormat('EEEE, dd/MM/yyyy, hh:mm a')
-        .format(DateTime.parse(dateTime));
+    return DateFormat(
+      'EEEE, dd/MM/yyyy, hh:mm a',
+    ).format(DateTime.parse(dateTime));
   }
 
   static DateTime stringToData(String dateTime) {
@@ -47,7 +48,13 @@ class DateTimeHelper {
   static String stringToTime(String dateTime, Locale locale) {
     List<String> times = dateTime.split(":");
     DateTime time = DateTime(
-        0, 0, 0, int.parse(times[0]), int.parse(times[1]), int.parse(times[2]));
+      0,
+      0,
+      0,
+      int.parse(times[0]),
+      int.parse(times[1]),
+      int.parse(times[2]),
+    );
     return DateFormat('h a', locale.languageCode).format(time);
   }
 
@@ -69,9 +76,29 @@ class DateTimeHelper {
       30,
       31,
       30,
-      31
+      31,
     ];
     return daysInMonth[month - 1];
+  }
+
+  static String formatExpiresAt(DateTime? expiresAt) {
+    if (expiresAt == null) return S.current.noExpiry;
+
+    final differenceInDays = calculateDifferenceInDays(expiresAt);
+
+    if (differenceInDays < 0) {
+      return S.current.expired;
+    } else if (differenceInDays == 0) {
+      return S.current.expiresToday;
+    } else if (differenceInDays == 1) {
+      return S.current.expiresTomorrow;
+    } else if (differenceInDays < 7) {
+      return S.current.expiresInDays(differenceInDays);
+    } else {
+      return S.current.expiresPrefix(
+        '${expiresAt.day}/${expiresAt.month}/${expiresAt.year}',
+      );
+    }
   }
 
   static String getTimeDifferenceFromNow(DateTime dateTime) {
@@ -90,7 +117,9 @@ class DateTimeHelper {
   }
 
   static List<DateTime> getCommonDates(
-      List<DateTime> firstDates, List<DateTime> secondDates) {
+    List<DateTime> firstDates,
+    List<DateTime> secondDates,
+  ) {
     Set<DateTime> set1 = Set<DateTime>.from(firstDates);
     Set<DateTime> set2 = Set<DateTime>.from(secondDates);
     Set<DateTime> commonDates = set1.intersection(set2);
@@ -98,16 +127,18 @@ class DateTimeHelper {
   }
 
   static List<DateTime> reArrangeDatesByBefore(List<DateTime> dates) {
-    List<DateTime> dateList =
-        dates.map((e) => fromStringToDate(e.toString())).toList();
+    List<DateTime> dateList = dates
+        .map((e) => fromStringToDate(e.toString()))
+        .toList();
 
     dateList.sort((a, b) => a.isBefore(b) ? -1 : 1);
     return dateList;
   }
 
   static List<DateTime> reArrangeDatesByAfter(List<DateTime> dates) {
-    List<DateTime> dateList =
-        dates.map((e) => fromStringToDate(e.toString())).toList();
+    List<DateTime> dateList = dates
+        .map((e) => fromStringToDate(e.toString()))
+        .toList();
 
     dateList.sort((a, b) => a.isAfter(b) ? -1 : 1);
     return dateList;
@@ -120,6 +151,7 @@ class DateTimeHelper {
     }
     return days;
   }
+
   static int getDifferenceInDays(DateTime startDate, DateTime endDate) {
     List<DateTime> days = [];
     for (int i = 0; i <= endDate.difference(startDate).inDays; i++) {
@@ -148,31 +180,36 @@ class DateTimeHelper {
   }
 
   static DateTime findLastDateOfTheWeek(DateTime dateTime) {
-    return dateTime
-        .add(Duration(days: DateTime.daysPerWeek - (dateTime.weekday % 7) - 2));
+    return dateTime.add(
+      Duration(days: DateTime.daysPerWeek - (dateTime.weekday % 7) - 2),
+    );
   }
 
   static DateTime findFirstDateOfPreviousWeek(DateTime dateTime) {
-    final DateTime sameWeekDayOfLastWeek =
-        dateTime.subtract(const Duration(days: 7));
+    final DateTime sameWeekDayOfLastWeek = dateTime.subtract(
+      const Duration(days: 7),
+    );
     return findFirstDateOfTheWeek(sameWeekDayOfLastWeek);
   }
 
   static DateTime findLastDateOfPreviousWeek(DateTime dateTime) {
-    final DateTime sameWeekDayOfLastWeek =
-        dateTime.subtract(const Duration(days: 7));
+    final DateTime sameWeekDayOfLastWeek = dateTime.subtract(
+      const Duration(days: 7),
+    );
     return findLastDateOfTheWeek(sameWeekDayOfLastWeek);
   }
 
   static DateTime findFirstDateOfNextWeek(DateTime dateTime) {
-    final DateTime sameWeekDayOfNextWeek =
-        dateTime.add(const Duration(days: 7));
+    final DateTime sameWeekDayOfNextWeek = dateTime.add(
+      const Duration(days: 7),
+    );
     return findFirstDateOfTheWeek(sameWeekDayOfNextWeek);
   }
 
   static DateTime findLastDateOfNextWeek(DateTime dateTime) {
-    final DateTime sameWeekDayOfNextWeek =
-        dateTime.add(const Duration(days: 7));
+    final DateTime sameWeekDayOfNextWeek = dateTime.add(
+      const Duration(days: 7),
+    );
     return findLastDateOfTheWeek(sameWeekDayOfNextWeek);
   }
 
@@ -185,14 +222,20 @@ class DateTimeHelper {
   }
 
   static DateTime findFirstDateOfPreviousMonth(DateTime dateTime) {
-    final DateTime prevMonth =
-        DateTime(dateTime.year, dateTime.month - 1, dateTime.day);
+    final DateTime prevMonth = DateTime(
+      dateTime.year,
+      dateTime.month - 1,
+      dateTime.day,
+    );
     return findFirstDateOfTheMonth(prevMonth);
   }
 
   static DateTime findLastDateOfPreviousMonth(DateTime dateTime) {
-    final DateTime prevMonth =
-        DateTime(dateTime.year, dateTime.month - 1, dateTime.day);
+    final DateTime prevMonth = DateTime(
+      dateTime.year,
+      dateTime.month - 1,
+      dateTime.day,
+    );
     return findLastDateOfTheMonth(prevMonth);
   }
 
@@ -205,14 +248,20 @@ class DateTimeHelper {
   }
 
   static DateTime findFirstDateOfPreviousYear(DateTime dateTime) {
-    final DateTime prevMonth =
-        DateTime(dateTime.year - 1, dateTime.month, dateTime.day);
+    final DateTime prevMonth = DateTime(
+      dateTime.year - 1,
+      dateTime.month,
+      dateTime.day,
+    );
     return findFirstDateOfTheYear(prevMonth);
   }
 
   static DateTime findLastDateOfPreviousYear(DateTime dateTime) {
-    final DateTime prevMonth =
-        DateTime(dateTime.year - 1, dateTime.month, dateTime.day);
+    final DateTime prevMonth = DateTime(
+      dateTime.year - 1,
+      dateTime.month,
+      dateTime.day,
+    );
     return findLastDateOfTheYear(prevMonth);
   }
 
@@ -232,14 +281,18 @@ class DateTimeHelper {
     var firstDateOfTheMonth = findFirstDateOfTheMonth(DateTime.now());
     var lastDateOfTheMonth = findLastDateOfTheMonth(DateTime.now());
     return dateTime.isBetween(
-        from: firstDateOfTheMonth, to: lastDateOfTheMonth);
+      from: firstDateOfTheMonth,
+      to: lastDateOfTheMonth,
+    );
   }
 
   static bool isInLastMonth(DateTime dateTime) {
     var firstDateOfTheMonth = findFirstDateOfPreviousMonth(DateTime.now());
     var lastDateOfTheMonth = findLastDateOfPreviousMonth(DateTime.now());
     return dateTime.isBetween(
-        from: firstDateOfTheMonth, to: lastDateOfTheMonth);
+      from: firstDateOfTheMonth,
+      to: lastDateOfTheMonth,
+    );
   }
 
   static bool isInThisYear(DateTime dateTime) {
@@ -252,7 +305,9 @@ class DateTimeHelper {
     var firstDateOfPreviousYear = findFirstDateOfPreviousYear(DateTime.now());
     var lastDateOfPreviousYear = findLastDateOfPreviousYear(DateTime.now());
     return dateTime.isBetween(
-        from: firstDateOfPreviousYear, to: lastDateOfPreviousYear);
+      from: firstDateOfPreviousYear,
+      to: lastDateOfPreviousYear,
+    );
   }
 
   /// Returns the difference (in full days) between the provided date and today.
@@ -261,9 +316,11 @@ class DateTimeHelper {
   /// Tomorrow : calculateDifference(date) == 1.
   static int calculateDifference(DateTime date) {
     DateTime now = DateTime.now();
-    return DateTime(date.year, date.month, date.day)
-        .difference(DateTime(now.year, now.month, now.day))
-        .inDays;
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+    ).difference(DateTime(now.year, now.month, now.day)).inDays;
   }
 }
 
