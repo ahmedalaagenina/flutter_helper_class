@@ -130,7 +130,9 @@ class TicketCard extends StatelessWidget {
                                       ClipboardData(text: textToCopy!),
                                     );
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Copied to clipboard')),
+                                      const SnackBar(
+                                        content: Text('Copied to clipboard'),
+                                      ),
                                     );
                                   },
                                   child: Padding(
@@ -254,7 +256,11 @@ class _TicketBorderPainter extends CustomPainter {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.color, required this.chipRadius});
+  const _StatusPill({
+    required this.label,
+    required this.color,
+    required this.chipRadius,
+  });
 
   final String label;
   final Color color;
