@@ -73,7 +73,7 @@ class ApiFailureHandler {
           hasServerMessage ? message : S.current.unauthorizedPleaseLogin,
         );
       case 403:
-        return UnauthorizedException(
+        return AccessForbiddenException(
           hasServerMessage ? message : S.current.accessForbidden,
         );
       case 404:

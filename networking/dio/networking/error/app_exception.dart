@@ -133,6 +133,7 @@ extension AppExceptionToFailure on AppException {
     FetchDataException _ ||
     NotFoundException _ ||
     CustomException _ => ServerFailure(message, code, data),
+    AccessForbiddenException _ => AccessForbiddenFailure(message, code, data),
     _ => UnknownFailure(message, code, data),
   };
 }
