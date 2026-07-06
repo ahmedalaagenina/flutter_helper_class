@@ -18,9 +18,10 @@ import 'package:share_handler/share_handler.dart';
 /// ### Lifecycle
 /// 1. Construct once (e.g. as a singleton) with the [SharedFileType]s you accept.
 /// 2. Call [init] once from your root widget's `initState`.
-/// 3. Listen to [onFileReceived] for every accepted file (cold + warm start).
-/// 4. For auth-gated flows, read [pendingFile] after login then
-///    [consumePendingFile].
+/// 3. Listen to [onFileReceived] for individual files, or [onFilesReceived] for
+///    batches (e.g. multi-image share).
+/// 4. For auth-gated flows, read [pendingFiles] after login then
+///    [consumePendingFiles].
 /// 5. Call [dispose] from your root widget's `dispose`.
 /// {@endtemplate}
 class SharedMediaService {
@@ -46,8 +47,11 @@ class SharedMediaService {
 
   final StreamController<SharedFile> _controller =
       StreamController<SharedFile>.broadcast();
+  final StreamController<List<SharedFile>> _batchController =
+      StreamController<List<SharedFile>>.broadcast();
   StreamSubscription<SharedMedia>? _streamSub;
   SharedFile? _pendingFile;
+  List<SharedFile> _pendingFiles = [];
   bool _initialHandled = false;
 
   // ---- public API -----------------------------------------------------------
@@ -56,14 +60,29 @@ class SharedMediaService {
   /// cold-start (file launched the app) and warm-start (shared while running).
   Stream<SharedFile> get onFileReceived => _controller.stream;
 
+  /// Broadcast stream that emits a **batch** of accepted files for each share
+  /// event. Useful when the OS delivers multiple files at once (e.g.
+  /// `SEND_MULTIPLE`).
+  Stream<List<SharedFile>> get onFilesReceived => _batchController.stream;
+
   /// The most recent accepted file that has not been consumed yet.
   ///
   /// Useful for auth-gated flows: after the user logs in, check this, navigate
   /// if non-null, then call [consumePendingFile].
   SharedFile? get pendingFile => _pendingFile;
 
+  /// All accepted files from the most recent share event that have not been
+  /// consumed yet. Useful for multi-image share intents.
+  List<SharedFile> get pendingFiles => List.unmodifiable(_pendingFiles);
+
   /// Clears [pendingFile] after it has been handled.
   void consumePendingFile() => _pendingFile = null;
+
+  /// Clears [pendingFiles] (and [pendingFile]) after they have been handled.
+  void consumePendingFiles() {
+    _pendingFile = null;
+    _pendingFiles = [];
+  }
 
   /// Starts listening for shared files. Call **once**. No-op on web.
   void init() {
@@ -104,7 +123,12 @@ class SharedMediaService {
   Future<bool> handleExternalUri(Uri uri) async {
     if (kIsWeb || uri.scheme.toLowerCase() != 'file') return false;
     try {
-      return _handlePath(uri.toFilePath());
+      final file = await _handlePath(uri.toFilePath());
+      if (file == null) return false;
+      // Wrap the single file into the batch API so listeners see it.
+      _pendingFiles = [file];
+      _batchController.add([file]);
+      return true;
     } catch (e) {
       _log('invalid file URI — $e');
       return false;
@@ -116,6 +140,7 @@ class SharedMediaService {
     _streamSub?.cancel();
     _streamSub = null;
     _controller.close();
+    _batchController.close();
   }
 
   // ---- internals ------------------------------------------------------------
@@ -132,14 +157,23 @@ class SharedMediaService {
     final attachments = media?.attachments;
     if (attachments == null || attachments.isEmpty) return;
 
+    final batch = <SharedFile>[];
     for (final attachment in attachments) {
       final path = attachment?.path;
       if (path == null || path.isEmpty) continue;
-      await _handlePath(path, attachmentType: attachment?.type);
+      final file = await _handlePath(path, attachmentType: attachment?.type);
+      if (file != null) batch.add(file);
+    }
+    if (batch.isNotEmpty) {
+      _pendingFiles = batch;
+      _batchController.add(batch);
     }
   }
 
-  Future<bool> _handlePath(
+  /// Processes a single file path. Returns the [SharedFile] if accepted, or
+  /// `null` if filtered / invalid. Also updates [_pendingFile] and emits on
+  /// the single-file stream for backward compatibility.
+  Future<SharedFile?> _handlePath(
     String path, {
     SharedAttachmentType? attachmentType,
   }) async {
@@ -147,16 +181,16 @@ class SharedMediaService {
 
     if (!_acceptAny && !_acceptedExtensions.contains(ext)) {
       _log('ignored unsupported file (ext="$ext", path=$path)');
-      return false;
+      return null;
     }
 
     final file = await _toSharedFile(path, ext, attachmentType);
-    if (file == null) return false;
+    if (file == null) return null;
 
     _pendingFile = file;
     _controller.add(file);
     _log('accepted file — ${file.name}');
-    return true;
+    return file;
   }
 
   Future<SharedFile?> _toSharedFile(
