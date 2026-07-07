@@ -157,9 +157,11 @@ class ImagePickerHelper {
       } else {
         file = await _picker.pickImage(
           source: source,
-          imageQuality: options.initialQuality,
-          maxWidth: options.maxWidth,
-          maxHeight: options.maxHeight,
+          imageQuality: options.preserveOriginal
+              ? null
+              : options.initialQuality,
+          maxWidth: options.preserveOriginal ? null : options.maxWidth,
+          maxHeight: options.preserveOriginal ? null : options.maxHeight,
         );
       }
 
@@ -177,6 +179,20 @@ class ImagePickerHelper {
         ),
       );
     }
+  }
+
+  /// Runs an already-obtained file (e.g. from a share / open-with intent)
+  /// through the exact validation + compression pipeline that picked images
+  /// go through — so files arriving from outside the picker end up with the
+  /// same size/quality as gallery picks.
+  ///
+  /// Throws [PickFailure] for unsupported or oversized files, like the pick
+  /// methods do internally.
+  static Future<PickResult> processExistingFile(
+    XFile file, {
+    ImagePickOptions options = const ImagePickOptions(),
+  }) {
+    return _validateAndMaybeReduce(file, options: options);
   }
 
   static Future<MultiPickOutcome> pickMultiple({
@@ -246,7 +262,7 @@ class ImagePickerHelper {
   static Future<XFile?> _pickWebSingle({
     required ImagePickOptions options,
   }) async {
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFiles(
       allowMultiple: false,
       withData: true,
       type: _filePickerType(options),
@@ -266,7 +282,7 @@ class ImagePickerHelper {
   static Future<List<XFile>> _pickWebMultiple({
     required ImagePickOptions options,
   }) async {
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFiles(
       allowMultiple: true,
       withData: true,
       type: _filePickerType(options),
@@ -291,6 +307,17 @@ class ImagePickerHelper {
     XFile file, {
     required ImagePickOptions options,
   }) async {
+    if (options.preserveOriginal) {
+      final bytes = await file.readAsBytes();
+      return PickResult(
+        file: file,
+        originalSizeBytes: bytes.lengthInBytes,
+        finalSizeBytes: bytes.lengthInBytes,
+        wasCompressed: false,
+        compressionPasses: 0,
+      );
+    }
+
     if (!_isAllowedType(file, options)) {
       throw PickFailure(
         type: PickFailureType.unsupportedType,
@@ -625,6 +652,13 @@ class ImagePickOptions {
   /// On web: reject if > maxSizeBytes (default true)
   final bool enforceMaxSizeOnWebWithoutCompression;
 
+  /// Return the picked file untouched: no `imageQuality`/resize transcoding and
+  /// no compression or type filtering. Use for formats that must be preserved
+  /// exactly (e.g. transparent PNG stamps) — image_picker otherwise re-encodes
+  /// to JPEG on Android, which silently strips the PNG. The caller is then
+  /// responsible for validating the bytes.
+  final bool preserveOriginal;
+
   const ImagePickOptions({
     this.allowedExtensions,
     this.maxSizeBytes,
@@ -639,6 +673,7 @@ class ImagePickOptions {
     this.returnBestEffortOnFailure = true,
     this.forceProcessEvenIfUnderLimit = false,
     this.enforceMaxSizeOnWebWithoutCompression = true,
+    this.preserveOriginal = false,
   });
 }
 
