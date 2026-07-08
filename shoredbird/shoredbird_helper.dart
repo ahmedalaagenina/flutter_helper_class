@@ -1,8 +1,7 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
-import 'package:restart_app/restart_app.dart';
-import 'package:scio_phile/start/my_app.dart';
+import 'package:sanad_rewards/main.dart';
 import 'package:shorebird_code_push/shorebird_code_push.dart';
 
 class ShorebirdUpdateManager {
@@ -11,13 +10,12 @@ class ShorebirdUpdateManager {
   factory ShorebirdUpdateManager() => _instance;
   ShorebirdUpdateManager._internal();
 
-  // Private static fields
   static ShorebirdUpdater? _updater;
   static bool _isCheckingForUpdates = false;
+  static bool _hasRestartedForUpdate = false;
   static bool _isRestartBannerUI = true;
   static UpdateTrack _currentTrack = UpdateTrack.stable;
 
-  // Getters
   static ShorebirdUpdater get updater {
     _updater ??= ShorebirdUpdater();
     return _updater!;
@@ -26,7 +24,6 @@ class ShorebirdUpdateManager {
   static bool get isCheckingForUpdates => _isCheckingForUpdates;
   static UpdateTrack get currentTrack => _currentTrack;
 
-  /// Initialize the updater and verify availability
   static void initialize({bool isRestartBannerUI = true}) {
     _updater = ShorebirdUpdater();
     _isRestartBannerUI = isRestartBannerUI;
@@ -35,16 +32,12 @@ class ShorebirdUpdateManager {
     }
   }
 
-  /// Check if Shorebird is available
   static bool isShorebirdAvailable() => _updater?.isAvailable ?? false;
 
-  /// Set the update track (stable, beta, staging)
   static void setTrack(UpdateTrack track) {
     _currentTrack = track;
   }
 
-  /// Read the current patch (if there is one.)
-  /// `currentPatch` will be `null` if no patch is installed.
   static Future<Patch?> getCurrentPatch() async {
     try {
       if (!isShorebirdAvailable()) return null;
@@ -55,7 +48,6 @@ class ShorebirdUpdateManager {
     }
   }
 
-  /// Check for updates and handle the update process
   static Future<void> checkForUpdate({
     bool autoDownload = true,
     VoidCallback? onUpdateAvailable,
@@ -80,7 +72,9 @@ class ShorebirdUpdateManager {
             _showUpdateAvailableBanner();
           }
         case UpdateStatus.restartRequired:
-          _showRestartUI();
+          if (!_hasRestartedForUpdate) {
+            _showRestartUI();
+          }
         case UpdateStatus.unavailable:
           log('Updates unavailable');
       }
@@ -123,10 +117,7 @@ class ShorebirdUpdateManager {
           },
           child: const Text('Download'),
         ),
-        TextButton(
-          onPressed: _hideBanner,
-          child: const Text('Later'),
-        ),
+        TextButton(onPressed: _hideBanner, child: const Text('Later')),
       ],
     );
   }
@@ -135,11 +126,7 @@ class ShorebirdUpdateManager {
     _showBanner(
       content: const Text('Downloading update...'),
       actions: const [
-        SizedBox(
-          height: 14,
-          width: 14,
-          child: CircularProgressIndicator(),
-        ),
+        SizedBox(height: 14, width: 14, child: CircularProgressIndicator()),
       ],
     );
   }
@@ -148,10 +135,7 @@ class ShorebirdUpdateManager {
     _showBanner(
       content: Text('Error downloading update: $error'),
       actions: [
-        TextButton(
-          onPressed: _hideBanner,
-          child: const Text('Dismiss'),
-        ),
+        TextButton(onPressed: _hideBanner, child: const Text('Dismiss')),
       ],
     );
   }
@@ -165,13 +149,14 @@ class ShorebirdUpdateManager {
       content: const Text('Update ready! Please restart your app.'),
       actions: [
         TextButton(
-          onPressed: () => Restart.restartApp(),
+          onPressed: () {
+            _hasRestartedForUpdate = true;
+            _hideBanner();
+            RestartWidget.restartApp(navigatorKey.currentState!.context);
+          },
           child: const Text('Restart Now'),
         ),
-        TextButton(
-          onPressed: _hideBanner,
-          child: const Text('Later'),
-        ),
+        TextButton(onPressed: _hideBanner, child: const Text('Later')),
       ],
     );
   }
@@ -186,15 +171,20 @@ class ShorebirdUpdateManager {
           child: AlertDialog(
             title: const Text('Update Ready'),
             content: const Text(
-                'An update has been downloaded. Restart now to apply the changes!'),
+              'An update has been downloaded. Restart now to apply the changes!',
+            ),
             actions: [
-              // TextButton(
-              //   child: const Text('Later'),
-              //   onPressed: () =>
-              //       Navigator.of(navigatorKey.currentState!.context).pop(),
-              // ),
               TextButton(
-                onPressed: () => Restart.restartApp(),
+                child: const Text('Later'),
+                onPressed: () =>
+                    Navigator.of(navigatorKey.currentState!.context).pop(),
+              ),
+              TextButton(
+                onPressed: () {
+                  _hasRestartedForUpdate = true;
+                  Navigator.of(navigatorKey.currentState!.context).pop();
+                  RestartWidget.restartApp(context);
+                },
                 child: const Text('Restart Now'),
               ),
             ],
@@ -210,16 +200,40 @@ class ShorebirdUpdateManager {
   }) {
     ScaffoldMessenger.of(navigatorKey.currentState!.context)
       ..hideCurrentMaterialBanner()
-      ..showMaterialBanner(
-        MaterialBanner(
-          content: content,
-          actions: actions,
-        ),
-      );
+      ..showMaterialBanner(MaterialBanner(content: content, actions: actions));
   }
 
   static void _hideBanner() {
-    ScaffoldMessenger.of(navigatorKey.currentState!.context)
-        .hideCurrentMaterialBanner();
+    ScaffoldMessenger.of(
+      navigatorKey.currentState!.context,
+    ).hideCurrentMaterialBanner();
+  }
+}
+
+class RestartWidget extends StatefulWidget {
+  const RestartWidget({super.key, required this.child});
+
+  final Widget child;
+
+  static void restartApp(BuildContext context) {
+    context.findAncestorStateOfType<_RestartWidgetState>()!.restartApp();
+  }
+
+  @override
+  State<RestartWidget> createState() => _RestartWidgetState();
+}
+
+class _RestartWidgetState extends State<RestartWidget> {
+  Key key = UniqueKey();
+
+  void restartApp() {
+    setState(() {
+      key = UniqueKey();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return KeyedSubtree(key: key, child: widget.child);
   }
 }

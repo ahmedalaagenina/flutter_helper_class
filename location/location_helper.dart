@@ -1,4 +1,4 @@
-// new normal one 
+// new one 
 // handle foreground and current location 
 
 
