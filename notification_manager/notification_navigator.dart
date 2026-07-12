@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:idara_esign/config/routes/app_router.dart';
 import 'package:idara_esign/config/routes/route_names.dart';
@@ -21,10 +22,12 @@ class NotificationNavigator {
     final documentId = _readString(data, 'document_id');
     final transactionId = _readString(data, 'transaction_id');
     if (transactionId != null) {
+      _dismissModalRoutes();
       _openTransactions();
       return;
     }
     if (documentId != null) {
+      _dismissModalRoutes();
       await _openDocument(documentId);
       return;
     }
@@ -61,6 +64,17 @@ class NotificationNavigator {
         await action.execute(context, isInsideApp: false);
       },
     );
+  }
+
+  /// Pops any imperative modal routes (dialogs, bottom sheets) sitting on the
+  /// root navigator. They stack ABOVE go_router's pages, so `context.go` alone
+  /// would navigate underneath them and the barrier-locked modal keeps
+  /// covering the screen — to the user the notification tap "did nothing" and
+  /// the app looks frozen.
+  static void _dismissModalRoutes() {
+    final navigator = rootNavigatorKey.currentState;
+    if (navigator == null) return;
+    navigator.popUntil((route) => route is PageRoute || route.isFirst);
   }
 
   static void _openTransactions() {
