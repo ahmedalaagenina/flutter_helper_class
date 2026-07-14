@@ -1,9 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:idara_esign/core/app_updater/app_updater.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pub_semver/pub_semver.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-import 'app_updater.dart';
 
 enum AppUpdaterStatus { outdated, forcedUpdate, upToDate, maintenance, unknown }
 
@@ -40,8 +39,6 @@ class AppUpdater {
     String? currentVersion,
   }) async {
     try {
-      final version = currentVersion ?? (await packageInfo).version;
-      final platformVersion = Version.parse(version);
       final manifest = await provider.getDistributionManifest();
 
       if (manifest == null) {
@@ -60,6 +57,14 @@ class AppUpdater {
         );
       }
 
+      // Web always runs the latest deployed build — store version
+      // comparison is meaningless there; only the maintenance flag applies.
+      if (kIsWeb) {
+        return AppUpdaterResult(AppUpdaterStatus.upToDate, manifest: manifest);
+      }
+
+      final version = currentVersion ?? (await packageInfo).version;
+      final platformVersion = Version.parse(version);
       final minimumVersion = Version.parse(storeDetails.version.minimum);
       final latestVersion = Version.parse(storeDetails.version.latest);
       final minimumDifference = platformVersion.compareTo(minimumVersion);

@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
 
+import 'method_type.dart';
+
 /// Adds an `Idempotency-Key` header to mutating requests so the server can
 /// dedupe duplicate side-effects (double-submits, retries after timeout,
 /// offline-queue replays, network races).
@@ -24,8 +26,12 @@ class IdempotencyInterceptor extends Interceptor {
   /// HTTP header name. Matches the IETF draft and Stripe/PayPal conventions.
   static const headerName = 'Idempotency-Key';
 
-  /// Methods that need a key.
-  static const _mutatingMethods = {'POST', 'PUT', 'PATCH', 'DELETE'};
+  final _mutatingMethods = {
+    MethodType.put.name,
+    MethodType.patch.name,
+    MethodType.post.name,
+    MethodType.delete.name,
+  };
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {

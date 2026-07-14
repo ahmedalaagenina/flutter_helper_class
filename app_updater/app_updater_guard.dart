@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
-import 'app_updater.dart';
+import 'package:idara_esign/core/app_updater/app_updater.dart';
+import 'package:idara_esign/generated/l10n.dart';
 
 typedef MaintenanceBuilder =
     Widget Function(BuildContext context, String? message);
@@ -189,9 +189,12 @@ class _DefaultMaintenance extends StatelessWidget {
                 color: Colors.orange,
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Under Maintenance',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              Text(
+                S.of(context).underMaintenance,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 12),
               Text(
@@ -224,22 +227,24 @@ class _DefaultForceUpdate extends StatelessWidget {
             children: [
               const Icon(Icons.system_update_alt, size: 72, color: Colors.blue),
               const SizedBox(height: 24),
-              const Text(
-                'Update Required',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              Text(
+                S.of(context).updateRequired,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 12),
               Text(
-                message ??
-                    'A new version is required to continue. Please update the app.',
+                message ?? S.of(context).updateRequiredMessage,
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 14, color: Colors.grey),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: onUpdate,
                 icon: const Icon(Icons.download),
-                label: const Text('Update Now'),
+                label: Text(S.of(context).updateNow),
               ),
             ],
           ),
@@ -273,17 +278,17 @@ class _DefaultOutdatedBanner extends StatelessWidget {
                 size: 20,
               ),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'A new version is available!',
-                  style: TextStyle(color: Colors.white, fontSize: 13),
+                  S.of(context).newVersionAvailable,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
                 ),
               ),
               TextButton(
                 onPressed: onUpdate,
-                child: const Text(
-                  'Update',
-                  style: TextStyle(color: Colors.white),
+                child: Text(
+                  S.of(context).update,
+                  style: const TextStyle(color: Colors.white),
                 ),
               ),
               IconButton(

@@ -2,66 +2,132 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_driver/core/local_storage/storage_keys.dart';
-import 'package:idara_driver/core/networking/networking.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:idara_esign/core/networking/auth_token_store.dart';
 
+/// A self-contained, app-agnostic Dio auth interceptor.
+///
+/// Responsibilities:
+/// - Attaches the Bearer token to every request except [_publicPaths].
+/// - On an auth failure ([_refreshStatusCodes], default 401) refreshes the
+///   token once and retries the failed request. Concurrent 401s share a
+///   single refresh call, and requests whose token was already refreshed by
+///   a previous request are retried without refreshing again.
+/// - When refresh fails, fires [_onForceLogout] exactly once and rejects all
+///   further auth failures until a public (login-like) request resets state.
+///
+/// Everything app-specific is injected, so this file can be copied between
+/// projects unchanged — only the [AuthTokenStore] interface must exist.
+///
+/// ```dart
+/// AuthInterceptor(
+///   tokenStore: tokenStore,
+///   dio: dio,
+///   refreshDio: refreshDio, // separate Dio WITHOUT this interceptor
+///   refreshPath: ApiConstant.refreshToken,
+///   publicPaths: [ApiConstant.login, ApiConstant.register],
+///   skipRefreshPaths: [ApiConstant.revokeAllTokens],
+///   localeProvider: () => prefs.getString(StorageKeys.locale) ?? 'en',
+///   onForceLogout: () => getIt<AuthBloc>().add(const LogoutEvent()),
+/// )
+/// ```
 class AuthInterceptor extends QueuedInterceptor {
-  final SharedPreferences _prefs;
   final AuthTokenStore _tokenStore;
   final Dio _dio;
   final Dio _refreshDio;
 
+  /// Endpoint the refresh request is posted to (via [_refreshDio]).
+  final String _refreshPath;
+
+  /// Endpoints that never carry a Bearer token. A request to one of these
+  /// also resets the interceptor state for the next session.
+  final List<String> _publicPaths;
+
+  /// Endpoints that carry a token but where an auth failure means the
+  /// session is already dead — refreshing would restart the logout cycle.
+  /// Always includes [_refreshPath] as defense against wiring mistakes.
+  final List<String> _skipRefreshPaths;
+
+  /// Status codes treated as "token expired, try a refresh". Only add 403
+  /// if the backend returns it for expired tokens — otherwise a genuine
+  /// permission error would force-logout the user.
+  final Set<int> _refreshStatusCodes;
+
+  /// Extracts the new token from the refresh response body.
+  final String? Function(Object? responseData) _tokenExtractor;
+
+  /// Returns the Accept-Language value, or null to skip the header.
+  final String? Function()? _localeProvider;
+
   /// Called when refresh fails and the session must be terminated.
-  /// Wire this to your app's logout flow (bloc event, navigator, etc).
+  /// Wire this to the app's logout flow (bloc event, navigator, etc).
   final void Function()? _onForceLogout;
 
-  /// Once set to true, all subsequent 401s are rejected immediately
+  /// Once set to true, all subsequent auth failures are rejected immediately
   /// without attempting refresh. Prevents cascading refresh+logout cycles.
   bool _forceLogout = false;
   Completer<String?>? _refreshCompleter;
 
+  static const String _retryFlagKey = '_isRetryAfterRefresh';
+
   AuthInterceptor({
-    required SharedPreferences prefs,
     required AuthTokenStore tokenStore,
     required Dio dio,
     required Dio refreshDio,
+    required String refreshPath,
+    required List<String> publicPaths,
+    List<String> skipRefreshPaths = const [],
+    Set<int> refreshStatusCodes = const {401},
+    String? Function(Object? responseData)? tokenExtractor,
+    String? Function()? localeProvider,
     void Function()? onForceLogout,
-  }) : _prefs = prefs,
-       _tokenStore = tokenStore,
+  }) : _tokenStore = tokenStore,
        _dio = dio,
        _refreshDio = refreshDio,
+       _refreshPath = refreshPath,
+       _publicPaths = publicPaths,
+       _skipRefreshPaths = [refreshPath, ...skipRefreshPaths],
+       _refreshStatusCodes = refreshStatusCodes,
+       _tokenExtractor = tokenExtractor ?? _defaultTokenExtractor,
+       _localeProvider = localeProvider,
        _onForceLogout = onForceLogout;
+
+  /// Default response shape: `{ "data": { "token": "..." } }`.
+  static String? _defaultTokenExtractor(Object? responseData) {
+    final data = responseData as Map<String, dynamic>?;
+    return (data?['data'] as Map<String, dynamic>?)?['token']?.toString();
+  }
 
   @override
   void onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    if (!_requiresToken(options)) {
-      debugPrint(
-        'AuthInterceptor: Login/Register request detected. Auto-resetting state.',
-      );
-      _resetState();
-    }
     try {
       if (_requiresToken(options)) {
         final token = await _tokenStore.getToken();
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
+      } else {
+        debugPrint(
+          'AuthInterceptor: Public auth request detected. Auto-resetting state.',
+        );
+        _resetState();
       }
-      options.headers['Accept-Language'] =
-          _prefs.getString(StorageKeys.locale) ?? 'en';
+
+      final locale = _localeProvider?.call();
+      if (locale != null) {
+        options.headers['Accept-Language'] = locale;
+      }
     } catch (e) {
-      debugPrint('Failed to attach auth token: $e');
+      debugPrint('AuthInterceptor: Failed to attach auth token: $e');
     }
     handler.next(options);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if ((err.response?.statusCode == 401 || err.response?.statusCode == 403) &&
+    if (_refreshStatusCodes.contains(err.response?.statusCode) &&
         _shouldAttemptRefresh(err.requestOptions)) {
       // If logout was already triggered, skip refresh entirely
       if (_forceLogout) {
@@ -70,10 +136,9 @@ class AuthInterceptor extends QueuedInterceptor {
       }
 
       try {
-        final String? failedRequestToken = err
-            .requestOptions
-            .headers['Authorization']
-            ?.replaceAll('Bearer ', '');
+        final String? failedRequestToken =
+            (err.requestOptions.headers['Authorization'] as String?)
+                ?.replaceAll('Bearer ', '');
         final String? currentTokenInStorage = await _tokenStore.getToken();
 
         if (failedRequestToken != null &&
@@ -100,7 +165,7 @@ class AuthInterceptor extends QueuedInterceptor {
 
           final options = err.requestOptions;
           options.headers['Authorization'] = 'Bearer $newToken';
-          options.extra['_isRetryAfterRefresh'] = true;
+          options.extra[_retryFlagKey] = true;
 
           final response = await _dio.fetch(options);
           return handler.resolve(response);
@@ -130,6 +195,11 @@ class AuthInterceptor extends QueuedInterceptor {
     }
 
     _refreshCompleter = Completer<String?>();
+    // The initiating request receives failures via `rethrow`, so when no
+    // concurrent request is awaiting this future, completeError would raise
+    // an unhandled async error ("RethrownDartError" on web). ignore() adds a
+    // no-op error listener; actual waiters still get the error normally.
+    _refreshCompleter!.future.ignore();
 
     try {
       final newToken = await _doRefreshToken();
@@ -149,7 +219,7 @@ class AuthInterceptor extends QueuedInterceptor {
     final currentToken = await _tokenStore.getToken();
 
     final response = await _refreshDio.post(
-      ApiConstant.refreshToken,
+      _refreshPath,
       options: Options(
         headers: {
           if (currentToken != null) 'Authorization': 'Bearer $currentToken',
@@ -157,8 +227,7 @@ class AuthInterceptor extends QueuedInterceptor {
       ),
     );
 
-    final data = response.data;
-    final newToken = data?['data']?['token']?.toString();
+    final newToken = _tokenExtractor(response.data);
 
     if (newToken != null && newToken.isNotEmpty) {
       final isPersistent = await _tokenStore.isPersistentSession();
@@ -168,22 +237,14 @@ class AuthInterceptor extends QueuedInterceptor {
     return null;
   }
 
-  bool _requiresToken(RequestOptions options) {
-    final path = options.path;
-    return !path.contains(ApiConstant.login) &&
-        !path.contains(ApiConstant.verifyOtp);
-  }
+  bool _requiresToken(RequestOptions options) =>
+      !_publicPaths.any(options.path.contains);
 
   bool _shouldAttemptRefresh(RequestOptions options) {
-    if (options.extra['_isRetryAfterRefresh'] == true) return false;
+    if (options.extra[_retryFlagKey] == true) return false;
+    if (!_requiresToken(options)) return false;
+    if (_skipRefreshPaths.any(options.path.contains)) return false;
 
-    final path = options.path;
-    if (path.contains(ApiConstant.login) ||
-        path.contains(ApiConstant.verifyOtp) ||
-        path.contains(ApiConstant.logout) ||
-        path.contains(ApiConstant.refreshToken)) {
-      return false;
-    }
     return true;
   }
 
@@ -195,7 +256,7 @@ class AuthInterceptor extends QueuedInterceptor {
       debugPrint('🔌 AuthInterceptor: Triggering forced logout');
       _onForceLogout?.call();
     } catch (e) {
-      debugPrint('Failed to trigger logout from interceptor: $e');
+      debugPrint('AuthInterceptor: Failed to trigger logout: $e');
     }
   }
 
@@ -203,6 +264,6 @@ class AuthInterceptor extends QueuedInterceptor {
   void _resetState() {
     _forceLogout = false;
     _refreshCompleter = null;
-    debugPrint('AuthInterceptor: State resetted successfully.');
+    debugPrint('AuthInterceptor: State reset successfully.');
   }
 }

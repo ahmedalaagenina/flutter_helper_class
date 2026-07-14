@@ -7,6 +7,7 @@ class AppUpdaterDistributionManifest {
     this.macOS,
     this.windows,
     this.linux,
+    this.web,
   });
 
   final AppUpdaterPlatformDistributionInfo? android;
@@ -14,9 +15,10 @@ class AppUpdaterDistributionManifest {
   final AppUpdaterPlatformDistributionInfo? macOS;
   final AppUpdaterPlatformDistributionInfo? windows;
   final AppUpdaterPlatformDistributionInfo? linux;
+  final AppUpdaterPlatformDistributionInfo? web;
 
   factory AppUpdaterDistributionManifest.fromJson(Map<String, dynamic> json) {
-    final data = json["data"];
+    final data = json['data'] as Map<String, dynamic>?;
     if (data == null) {
       return const AppUpdaterDistributionManifest();
     }
@@ -54,10 +56,16 @@ class AppUpdaterDistributionManifest {
               Map<String, dynamic>.from(data['linux'] as Map),
             )
           : null,
+      web: data['web'] != null
+          ? AppUpdaterPlatformDistributionInfo.fromJson(
+              Map<String, dynamic>.from(data['web'] as Map),
+            )
+          : null,
     );
   }
 
   AppUpdaterPlatformDistributionInfo? get currentPlatform {
+    if (kIsWeb) return web;
     return switch (defaultTargetPlatform) {
       TargetPlatform.android => android,
       TargetPlatform.iOS => iOS,
@@ -89,9 +97,11 @@ class AppUpdaterPlatformDistributionInfo {
     Map<String, dynamic> json,
   ) {
     return AppUpdaterPlatformDistributionInfo(
-      version: AppUpdaterVersionDetails.fromJson(
-        Map<String, dynamic>.from(json['version'] as Map),
-      ),
+      version: json['version'] is Map
+          ? AppUpdaterVersionDetails.fromJson(
+              Map<String, dynamic>.from(json['version'] as Map),
+            )
+          : const AppUpdaterVersionDetails(minimum: '0.0.0', latest: '0.0.0'),
       downloadUrl: json['download_url'] as String?,
       status: AppUpdaterStatusDetails.fromJson(
         Map<String, dynamic>.from(json['status'] as Map),

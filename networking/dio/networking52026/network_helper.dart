@@ -8,6 +8,8 @@ import 'package:idara_driver/core/networking/networking.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../networking/api_constant.dart';
+
 // Future<void> _registerNetworkStack() async {
 //   // await Hive.initFlutter();
 //   await CacheService.instance.init();
@@ -109,13 +111,18 @@ class NetworkHelper {
       DuplicateRequestInterceptor(),
 
       // 4. Auth.
+
       AuthInterceptor(
-        prefs: _prefs,
         tokenStore: _tokenStore,
         dio: dio,
-        refreshDio: refreshDio,
-        onForceLogout: _onForceLogout,
-      ),
+        refreshDio: refreshDio, // separate Dio WITHOUT this interceptor
+        refreshPath: ApiConstant.refreshToken,
+        publicPaths: [ApiConstant.login, ApiConstant.register],
+        skipRefreshPaths: [ApiConstant.revokeAllTokens],
+        localeProvider: () => prefs.getString(StorageKeys.locale) ?? 'en',
+        onForceLogout: () => getIt<AuthBloc>().add(const LogoutEvent()),
+       )
+     
 
       // 5. Cache BEFORE offline sync — on network error, serves stale cache.
       DioCacheInterceptor(options: CacheService.instance.defaultOptions),

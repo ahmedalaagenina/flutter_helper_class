@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// Clear keychain on reinstall
 /// call this function on first of init and before of di.init()
 // Future<void> _clearKeychainOnReinstall() async {
+// if (kIsWeb) return;
 //   final prefs = await SharedPreferences.getInstance();
 //   final hasRunBefore = prefs.getBool('has_run_before') ?? false;
 

@@ -1,9 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/services.dart';
-
-import 'app_updater.dart';
+import 'package:idara_esign/core/app_updater/app_updater.dart';
 
 abstract class AppUpdaterProvider {
   Future<AppUpdaterDistributionManifest?> getDistributionManifest();
@@ -52,19 +50,6 @@ class MapAppUpdaterProvider extends AppUpdaterProvider {
 
   @override
   Future<AppUpdaterDistributionManifest?> getDistributionManifest() async {
-    return AppUpdaterDistributionManifest.fromJson(payload);
-  }
-}
-
-class AssetJsonAppUpdaterProvider extends AppUpdaterProvider {
-  AssetJsonAppUpdaterProvider({required this.assetPath});
-
-  final String assetPath;
-
-  @override
-  Future<AppUpdaterDistributionManifest?> getDistributionManifest() async {
-    final jsonString = await rootBundle.loadString(assetPath);
-    final payload = jsonDecode(jsonString) as Map<String, dynamic>;
     return AppUpdaterDistributionManifest.fromJson(payload);
   }
 }

@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
+import '../networking/method_type.dart';
+
 /// Dio interceptor that prevents duplicate in-flight mutating requests.
 ///
 /// Tracks active requests by a canonical signature derived from
@@ -21,8 +23,11 @@ class DuplicateRequestInterceptor extends Interceptor {
   /// Sentinel message used to identify rejected duplicate requests.
   static const duplicateMessage = 'DUPLICATE_REQUEST_IGNORED';
 
-  /// Methods that are safe to repeat — never intercepted.
-  static const _safeMethods = {'GET', 'HEAD', 'OPTIONS'};
+  final _safeMethods = {
+    MethodType.get.name,
+    MethodType.head.name,
+    MethodType.options.name,
+  };
 
   // ──────────────────────────────────────────────────────────────────────
   // Interceptor overrides
