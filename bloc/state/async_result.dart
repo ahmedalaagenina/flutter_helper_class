@@ -61,6 +61,16 @@ sealed class AsyncResult<T> extends Equatable {
   ///
   bool get hasError => error != null;
 
+  /// HTTP-ish status code of the current failure, when known (e.g. 404).
+  /// Null when there is no failure or the code is unknown.
+  int? get errorCode => error?.code;
+
+  /// Whether the failure was a "resource gone" (404/410) — e.g. the item was
+  /// deleted. Screens use this to show a "no longer available" dialog instead
+  /// of a generic error.
+  /// if (result.isNotFound) showGoneDialog();
+  bool get isNotFound => errorCode == 404 || errorCode == 410;
+
   /// Loading with existing data (refresh)
   /// Whether the operation is loading but retains previous data (e.g., Pull-to-refresh).
   /// if (result.isRefreshing) showTopLoader();

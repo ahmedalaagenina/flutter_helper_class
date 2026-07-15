@@ -89,6 +89,10 @@ class ApiFailureHandler {
         return NotFoundException(
           hasServerMessage ? message : S.current.resourceNotFound,
         );
+      case 410:
+        return NotFoundException(
+          hasServerMessage ? message : S.current.resourceNotFound,
+        );
       case 422:
         return InvalidInputException(
           hasServerMessage ? message : S.current.badRequestCheckInput,
