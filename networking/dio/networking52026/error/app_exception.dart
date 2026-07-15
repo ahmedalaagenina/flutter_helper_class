@@ -1,4 +1,4 @@
-import '../networking.dart';
+import 'package:idara_esign/core/networking/error/app_failure.dart';
 
 sealed class AppException implements Exception {
   final String message;
@@ -14,112 +14,112 @@ sealed class AppException implements Exception {
 }
 
 class ServerException extends AppException {
-  const ServerException([
-    super.message = "Server error occurred.",
-    String prefix = "Server",
-    int? code,
-    Map<String, dynamic>? data,
-  ]) : super(prefix: prefix, code: code, data: data);
+  const ServerException({
+    String message = 'Server error occurred.',
+    super.prefix = 'Server',
+    super.code,
+    super.data,
+  }) : super(message);
 }
 
 class NoInternetException extends AppException {
-  const NoInternetException([
-    super.message = "No Internet connection. Please check your network.",
-    String prefix = "Network",
-    int? code,
-    Map<String, dynamic>? data,
-  ]) : super(prefix: prefix, code: code, data: data);
+  const NoInternetException({
+    String message = 'No Internet connection. Please check your network.',
+    super.prefix = 'Network',
+    super.code,
+    super.data,
+  }) : super(message);
 }
 
 class RequestTimeoutException extends AppException {
-  const RequestTimeoutException([
-    super.message =
+  const RequestTimeoutException({
+    String message =
         'Oops! Something took too long to load. Please check your internet and try again.',
-    String prefix = "Timeout",
-    int? code,
-    Map<String, dynamic>? data,
-  ]) : super(prefix: prefix, code: code, data: data);
+    super.prefix = 'Timeout',
+    super.code,
+    super.data,
+  }) : super(message);
 }
 
 class CacheException extends AppException {
-  const CacheException([
-    super.message = "Cache error occurred.",
-    String prefix = "Cache",
-    int? code,
-    Map<String, dynamic>? data,
-  ]) : super(prefix: prefix, code: code, data: data);
+  const CacheException({
+    String message = 'Cache error occurred.',
+    super.prefix = 'Cache',
+    super.code,
+    super.data,
+  }) : super(message);
 }
 
 class BadRequestException extends AppException {
-  const BadRequestException([
-    super.message = "Invalid request.",
-    String prefix = "Bad Request",
-    int? code,
-    Map<String, dynamic>? data,
-  ]) : super(prefix: prefix, code: code, data: data);
+  const BadRequestException({
+    String message = 'Invalid request.',
+    super.prefix = 'Bad Request',
+    super.code,
+    super.data,
+  }) : super(message);
 }
 
 class UnauthorizedException extends AppException {
-  const UnauthorizedException([
-    super.message = "Unauthorized access.",
-    String prefix = "Auth",
-    int? code,
-    Map<String, dynamic>? data,
-  ]) : super(prefix: prefix, code: code, data: data);
+  const UnauthorizedException({
+    String message = 'Unauthorized access.',
+    super.prefix = 'Auth',
+    super.code,
+    super.data,
+  }) : super(message);
 }
 
 class AccessForbiddenException extends AppException {
-  const AccessForbiddenException([
-    super.message = "Access forbidden.",
-    String prefix = "Access Forbidden",
-    int? code,
-    Map<String, dynamic>? data,
-  ]) : super(prefix: prefix, code: code, data: data);
+  const AccessForbiddenException({
+    String message = 'Access forbidden.',
+    super.prefix = 'Access Forbidden',
+    super.code,
+    super.data,
+  }) : super(message);
 }
 
 class InvalidInputException extends AppException {
-  const InvalidInputException([
-    super.message = "Invalid input provided.",
-    String prefix = "Input Error",
-    int? code,
-    Map<String, dynamic>? data,
-  ]) : super(prefix: prefix, code: code, data: data);
+  const InvalidInputException({
+    String message = 'Invalid input provided.',
+    super.prefix = 'Input Error',
+    super.code,
+    super.data,
+  }) : super(message);
 }
 
 class FetchDataException extends AppException {
-  const FetchDataException([
-    super.message = "Unable to fetch data.",
-    String prefix = "Fetch Error",
-    int? code,
-    Map<String, dynamic>? data,
-  ]) : super(prefix: prefix, code: code, data: data);
+  const FetchDataException({
+    String message = 'Unable to fetch data.',
+    super.prefix = 'Fetch Error',
+    super.code,
+    super.data,
+  }) : super(message);
 }
 
 class CustomException extends AppException {
-  const CustomException(
-    super.message, {
-    String super.prefix = "Custom Status",
+  const CustomException({
+    required String message,
+    super.prefix = 'Custom Status',
     super.code,
     super.data,
-  });
+  }) : super(message);
 }
 
 class NotFoundException extends AppException {
-  const NotFoundException([
-    super.message = "Resource not found.",
-    String prefix = "Not Found",
-    int? code,
-    Map<String, dynamic>? data,
-  ]) : super(prefix: prefix, code: code, data: data);
+  const NotFoundException({
+    String message = 'Resource not found.',
+    super.prefix = 'Not Found',
+    super.code,
+    super.data,
+  }) : super(message);
 }
 
 class UnknownException extends AppException {
-  const UnknownException([
-    super.message = "An unknown error occurred.",
-    String prefix = "Unknown",
-    int? code,
-    Map<String, dynamic>? data,
-  ]) : super(prefix: prefix, code: code, data: data);
+  const UnknownException({
+    String message = 'An unknown error occurred.',
+    super.prefix = 'Unknown',
+    super.code,
+    super.data,
+  }) : super(message);
 }
 
 extension AppExceptionToFailure on AppException {
@@ -133,6 +133,7 @@ extension AppExceptionToFailure on AppException {
     FetchDataException _ ||
     NotFoundException _ ||
     CustomException _ => ServerFailure(message, code, data),
+    AccessForbiddenException _ => AccessForbiddenFailure(message, code, data),
     _ => UnknownFailure(message, code, data),
   };
 }
