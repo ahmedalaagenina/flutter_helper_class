@@ -10,6 +10,28 @@ typedef Data<T> = Either<AppFailure, T>;
 
 enum DataSourceType { remote, cache, offlineQueued }
 
+/// Which sources a read may pull from, and in what order.
+///
+/// This governs the **local Hive store only** — i.e. the [LocalStorageApiService]
+/// reached through `getCachedData` / `cacheCall`. The HTTP response cache
+/// ([DioCacheInterceptor]) is a separate layer, controlled by `CachePolicy`
+/// at the `api.get(...)` call site inside `remoteCall`. See
+/// [CacheService.networkOnly], [CacheService.cacheFirst] and
+/// [CacheService.refreshAndStore] for ready-made policies.
+enum CacheMode {
+  /// Network first; falls back to Hive when offline or the request fails.
+  remoteFirst,
+
+  /// Hive first; only requests the network when Hive has nothing stored.
+  cacheFirst,
+
+  /// Network only — Hive is never read, not even on failure.
+  remoteOnly,
+
+  /// Hive only — the network is never touched and `remoteCall` never runs.
+  cacheOnly,
+}
+
 class Result<T> {
   final Data<T> data;
   final DataSourceType source;
@@ -36,18 +58,45 @@ class ApiCallHandler {
   ApiCallHandler._();
 
   static Future<Result<T>> handleRead<T>({
-    // if null it will use the DioCacheInterceptor to cache the response
-    // and if it not null will depend on the HiveCacheService
+    /// Optional pre-flight connectivity gate. When supplied and the device is
+    /// offline, the read short-circuits to the Hive store without ever
+    /// reaching Dio — which also means [DioCacheInterceptor] gets no chance to
+    /// serve its stored copy. When null, `remoteCall` always runs and the
+    /// interceptor chain (HTTP cache, retry, offline sync) handles failure.
+    ///
+    /// Note this selects *when to skip the network*, not *which cache is used*.
     NetworkInfo? networkInfo,
 
     /// If true (default false), `handleRead` runs a real reachability
     /// probe (HEAD to NetworkInfoImpl.pingUrl) instead of trusting the
     /// OS-level connectivity flag. Slower but defeats captive portals.
     bool verifyReachability = false,
+
+    /// Where this read is allowed to source its data from. Governs the Hive
+    /// store only — see [CacheMode].
+    CacheMode mode = CacheMode.remoteFirst,
+
+    /// When false, a successful remote read is *not* written back to Hive.
+    /// Use for reads you want to serve fresh but never persist.
+    bool writeToCache = true,
     required Future<T> Function() remoteCall,
     Future<void> Function(T data)? cacheCall,
     Future<T?> Function()? getCachedData,
   }) async {
+    if (mode == CacheMode.cacheOnly) {
+      return _resolveCache<T>(
+        getCachedData: getCachedData,
+        fallback: const NoCachedDataFailure(),
+      );
+    }
+
+    if (mode == CacheMode.cacheFirst) {
+      final cached = await _readCache(getCachedData);
+      if (cached != null) {
+        return Result<T>(data: Right(cached), source: DataSourceType.cache);
+      }
+    }
+
     final bool? online = networkInfo == null
         ? null
         : (verifyReachability
@@ -55,19 +104,16 @@ class ApiCallHandler {
               : await networkInfo.isConnected);
 
     if (online == false) {
-      return _resolveCache<T>(
-        getCachedData: getCachedData,
-        fallback: const NetworkFailure(),
-      );
+      return _fallback<T>(mode, getCachedData, const NetworkFailure());
     }
 
     try {
       final remoteData = await remoteCall();
-      await _runCacheCall(cacheCall, remoteData);
+      if (writeToCache) await _runCacheCall(cacheCall, remoteData);
       return Result<T>(data: Right(remoteData), source: DataSourceType.remote);
     } catch (error) {
       final failure = ApiFailureHandler.handle(error);
-      return _resolveCache<T>(getCachedData: getCachedData, fallback: failure);
+      return _fallback<T>(mode, getCachedData, failure);
     }
   }
 
@@ -146,21 +192,39 @@ class ApiCallHandler {
     }
   }
 
+  /// Reads the Hive store, swallowing store errors as a miss.
+  static Future<T?> _readCache<T>(Future<T?> Function()? getCachedData) async {
+    if (getCachedData == null) return null;
+    try {
+      return await getCachedData();
+    } catch (e) {
+      AppLog.e('[ApiCallHandler._readCache] Read failed: $e');
+      return null;
+    }
+  }
+
   static Future<Result<T>> _resolveCache<T>({
     Future<T?> Function()? getCachedData,
     required AppFailure fallback,
   }) async {
-    if (getCachedData != null) {
-      try {
-        final cached = await getCachedData();
-        if (cached != null) {
-          return Result<T>(data: Right(cached), source: DataSourceType.cache);
-        }
-      } catch (e) {
-        AppLog.e('[ApiCallHandler._resolveCache] Read failed: $e');
-      }
+    final cached = await _readCache(getCachedData);
+    if (cached != null) {
+      return Result<T>(data: Right(cached), source: DataSourceType.cache);
     }
     return Result<T>(data: Left(fallback), source: DataSourceType.remote);
+  }
+
+  /// Post-failure fallback. [CacheMode.remoteOnly] surfaces the failure as-is;
+  /// every other mode gets one chance at the Hive store first.
+  static Future<Result<T>> _fallback<T>(
+    CacheMode mode,
+    Future<T?> Function()? getCachedData,
+    AppFailure failure,
+  ) async {
+    if (mode == CacheMode.remoteOnly) {
+      return Result<T>(data: Left(failure), source: DataSourceType.remote);
+    }
+    return _resolveCache<T>(getCachedData: getCachedData, fallback: failure);
   }
 
   static Future<void> _runCacheCall<T>(

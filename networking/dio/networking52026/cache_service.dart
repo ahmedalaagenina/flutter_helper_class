@@ -81,6 +81,41 @@ class CacheService {
     );
   }
 
+  // ── Ready-made policies for the HTTP response cache ──────────────────
+  // Pass one as `cacheOptions:` on an ApiService call to control what the
+  // DioCacheInterceptor does for that single request. These are independent
+  // of `CacheMode`, which governs the Hive store instead.
+
+  /// Never reads and never writes the HTTP cache — not even on failure.
+  /// Any previously stored entry for this request is deleted.
+  CacheOptions get networkOnly => buildOptions(
+    policy: CachePolicy.noCache,
+    hitCacheOnNetworkFailure: false,
+    hitCacheOnErrorCodes: const [],
+  );
+
+  /// Serves the stored copy when one exists; only reaches the network when
+  /// the store is empty. The cheapest read, and the most stale.
+  CacheOptions cacheFirst({Duration maxStale = const Duration(days: 7)}) =>
+      buildOptions(policy: CachePolicy.forceCache, maxStale: maxStale);
+
+  /// Always requests the network and stores the result regardless of what
+  /// the server's cache headers say; serves the stored copy on failure.
+  CacheOptions refreshAndStore({
+    Duration maxStale = const Duration(days: 7),
+    bool hitCacheOnNetworkFailure = true,
+  }) => buildOptions(
+    policy: CachePolicy.refreshForceCache,
+    maxStale: maxStale,
+    hitCacheOnNetworkFailure: hitCacheOnNetworkFailure,
+  );
+
+  /// Always requests the network; stores the result only when the server's
+  /// cache headers permit it. Use when the backend owns cache lifetime.
+  CacheOptions refreshRespectingHeaders({
+    Duration maxStale = const Duration(days: 7),
+  }) => buildOptions(policy: CachePolicy.refresh, maxStale: maxStale);
+
   /// Clears all cached responses.
   Future<void> clearAll() async {
     _ensureInitialized();

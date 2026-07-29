@@ -73,6 +73,7 @@ import 'package:<your_app>/core/networking/networking.dart';
    - [3. AuthInterceptor (token + refresh + logout hook)](#3-authinterceptor-token--refresh--logout-hook)
    - [4. RetryInterceptor (backoff + jitter)](#4-retryinterceptor-backoff--jitter)
    - [5. CacheService + DioCacheInterceptor](#5-cacheservice--diocacheinterceptor)
+   - [5a. Choosing which cache layer each endpoint uses](#5a-choosing-which-cache-layer-each-endpoint-uses)
    - [6. EndpointCacheRegistry (per-path policy)](#6-endpointcacheregistry-per-path-policy)
    - [7. DuplicateRequestInterceptor](#7-duplicaterequestinterceptor)
    - [8. IdempotencyInterceptor](#8-idempotencyinterceptor)
@@ -539,6 +540,166 @@ await api.get(
 await CacheService.instance.clearAll();
 await CacheService.instance.clearForPath(RegExp(r'/user/.*'));
 ```
+
+---
+
+### 5a. Choosing which cache layer each endpoint uses
+
+There are **two independent cache layers**, and each is steered from a
+different place. Mixing them up is the single most common mistake here.
+
+| Layer | Stores | Steered by |
+|---|---|---|
+| HTTP cache (`DioCacheInterceptor`) | the raw `Response` | `cacheOptions:` on the `api.get(...)` call |
+| Hive (`LocalStorageApiService`) | the parsed model | `mode` + `cacheCall` / `getCachedData` on `handleRead` |
+
+**Hive side — `CacheMode`:**
+
+| Mode | Reads Hive | Hits network |
+|---|---|---|
+| `remoteFirst` *(default)* | only on failure/offline | yes |
+| `cacheFirst` | first, before the network | only on a Hive miss |
+| `remoteOnly` | never | yes |
+| `cacheOnly` | always | never (`remoteCall` is not invoked) |
+
+Writing to Hive is separate: it happens when `cacheCall` is supplied **and**
+`writeToCache` is `true` (the default).
+
+**HTTP side — ready-made policies on `CacheService`:**
+
+| Preset | Reads store before network | Writes store | Serves store on failure |
+|---|---|---|---|
+| `networkOnly` | no | no (deletes any existing entry) | no |
+| `cacheFirst()` | yes | yes | yes |
+| `refreshAndStore()` | no | always | yes |
+| `refreshRespectingHeaders()` | no | only if headers allow | yes |
+
+Only `CachePolicy.request` and `CachePolicy.forceCache` perform a store lookup
+before going to the network — every other policy goes straight out.
+
+#### Hive yes, HTTP cache no
+
+Parsed model persists; nothing is kept at the transport level.
+
+```dart
+ApiCallHandler.handleRead<Profile>(
+  networkInfo: networkInfo,
+  remoteCall: () async {
+    final res = await api.get(
+      ApiConstant.profile,
+      cacheOptions: CacheService.instance.networkOnly,
+    );
+    return Profile.fromJson(res.data);
+  },
+  cacheCall: (d) => storage.save(key: 'profile', data: d.toJson()),
+  getCachedData: () async {
+    final j = storage.read('profile');
+    return j == null ? null : Profile.fromJson(j);
+  },
+);
+```
+
+#### HTTP cache yes, Hive no
+
+Cheap transport-level reuse, no parsed copy on disk. Omitting `getCachedData`
+and `cacheCall` already excludes Hive; `remoteOnly` documents the intent.
+
+```dart
+ApiCallHandler.handleRead<NewsFeed>(
+  mode: CacheMode.remoteOnly,
+  remoteCall: () async {
+    final res = await api.get(
+      ApiConstant.newsFeed,
+      cacheOptions: CacheService.instance.refreshAndStore(
+        maxStale: const Duration(hours: 6),
+      ),
+    );
+    return NewsFeed.fromJson(res.data);
+  },
+);
+```
+
+#### Both layers
+
+`cacheFirst` on each side gives the fastest cold open.
+
+```dart
+ApiCallHandler.handleRead<HomeData>(
+  mode: CacheMode.cacheFirst,
+  networkInfo: networkInfo,
+  remoteCall: () async {
+    final res = await api.get(
+      ApiConstant.home,
+      cacheOptions: CacheService.instance.cacheFirst(
+        maxStale: const Duration(days: 3),
+      ),
+    );
+    return HomeData.fromJson(res.data);
+  },
+  cacheCall: (d) => storage.save(key: 'home', data: d.toJson()),
+  getCachedData: () async {
+    final j = storage.read('home');
+    return j == null ? null : HomeData.fromJson(j);
+  },
+);
+```
+
+#### Neither layer
+
+For balances, OTP state, anything that must never be served stale.
+
+```dart
+ApiCallHandler.handleRead<Balance>(
+  mode: CacheMode.remoteOnly,
+  remoteCall: () async {
+    final res = await api.get(
+      ApiConstant.balance,
+      cacheOptions: CacheService.instance.networkOnly,
+    );
+    return Balance.fromJson(res.data);
+  },
+);
+```
+
+#### Read Hive, but never write to it
+
+For a store seeded elsewhere (a sync job, a bundled seed) that reads must not
+overwrite.
+
+```dart
+ApiCallHandler.handleRead<SearchResult>(
+  writeToCache: false,
+  remoteCall: () async { … },
+  cacheCall: (d) => storage.save(key: 'search', data: d.toJson()), // ignored
+  getCachedData: () async { … },                                   // still used
+);
+```
+
+#### Many endpoints at once
+
+Rather than repeating `cacheOptions:` at every call site, register the HTTP
+policy per path and add `EndpointCacheInterceptor` **before**
+`DioCacheInterceptor` in `createDio`:
+
+```dart
+final registry = EndpointCacheRegistry(fallback: CacheService.instance.networkOnly)
+  ..register(RegExp(r'^/feed'), CacheService.instance.refreshAndStore())
+  ..register(RegExp(r'^/config'), CacheService.instance.cacheFirst())
+  ..register(RegExp(r'^/balance'), CacheService.instance.networkOnly);
+
+dio.interceptors.add(EndpointCacheInterceptor(registry));
+dio.interceptors.add(DioCacheInterceptor(options: registry.fallback));
+```
+
+A `cacheOptions:` passed at the call site still wins — the interceptor skips
+requests that already carry one.
+
+**Two traps.** The HTTP cache ignores everything except `GET` unless you pass
+`allowPostMethod: true`. And when it serves a stored copy via
+`hitCacheOnNetworkFailure`, `remoteCall()` *succeeds*, so the `Result` reports
+`DataSourceType.remote` even though nothing left the device — check
+`response.extra[extraFromNetworkKey]` if that distinction matters, or rely on
+Hive, whose `DataSourceType.cache` is exact.
 
 ---
 
