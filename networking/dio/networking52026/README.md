@@ -577,6 +577,24 @@ Writing to Hive is separate: it happens when `cacheCall` is supplied **and**
 Only `CachePolicy.request` and `CachePolicy.forceCache` perform a store lookup
 before going to the network — every other policy goes straight out.
 
+**Know your baseline.** `CacheService.init()` sets the global default to
+`refreshForceCache` with `maxStale: 7 days`, so out of the box **every `GET` in
+the app is already cached for a week**. Passing `cacheOptions:` changes one
+endpoint relative to that baseline; it does not opt anything in that was
+previously out. If you want the opposite default — nothing cached unless asked
+— change `_defaultOptions` in `init()` to `CachePolicy.noCache` (or give a
+registry a `fallback: networkOnly`) and then opt endpoints in individually.
+
+**Precedence**, highest first:
+
+1. `cacheOptions:` passed on the call — always wins
+2. the `EndpointCacheRegistry` rule matching the path, if a registry is wired
+3. `CacheService.defaultOptions`
+
+This is a replacement, not a merge: `_getCacheOptions` returns
+`request.getCacheOptions() ?? _options`, so whichever level wins supplies
+*every* field, including `allowPostMethod` and `keyBuilder`.
+
 #### Hive yes, HTTP cache no
 
 Parsed model persists; nothing is kept at the transport level.
@@ -687,19 +705,94 @@ final registry = EndpointCacheRegistry(fallback: CacheService.instance.networkOn
   ..register(RegExp(r'^/config'), CacheService.instance.cacheFirst())
   ..register(RegExp(r'^/balance'), CacheService.instance.networkOnly);
 
-dio.interceptors.add(EndpointCacheInterceptor(registry));
-dio.interceptors.add(DioCacheInterceptor(options: registry.fallback));
+NetworkHelper(tokenStore, prefs, syncQueue: queue, cacheRegistry: registry);
 ```
 
-A `cacheOptions:` passed at the call site still wins — the interceptor skips
-requests that already carry one.
+`createDio` inserts `EndpointCacheInterceptor` ahead of `DioCacheInterceptor`
+and uses `registry.fallback` as the interceptor default, so an endpoint you
+forgot to register inherits the fallback rather than a blanket policy. A
+`cacheOptions:` passed at the call site still wins — the interceptor skips
+requests that already carry one. Pass no `cacheRegistry` and behaviour is
+exactly as before: every request uses `CacheService.defaultOptions`.
 
-**Two traps.** The HTTP cache ignores everything except `GET` unless you pass
-`allowPostMethod: true`. And when it serves a stored copy via
+**Two traps.** When the interceptor serves a stored copy via
 `hitCacheOnNetworkFailure`, `remoteCall()` *succeeds*, so the `Result` reports
 `DataSourceType.remote` even though nothing left the device — check
 `response.extra[extraFromNetworkKey]` if that distinction matters, or rely on
-Hive, whose `DataSourceType.cache` is exact.
+Hive, whose `DataSourceType.cache` is exact. And the HTTP cache ignores
+everything except `GET` unless `allowPostMethod` is on — which is its own
+hazard, below.
+
+#### Caching a POST
+
+By default **no POST is cached anywhere in the app** — the interceptor skips
+every method except `GET` unless `allowPostMethod` is on. `CacheService.postCache()`
+is the only thing that turns it on, and it does so for one request at a time.
+
+**Decide with one question:** *if the same request is sent twice, does something
+happen twice on the server?*
+
+| Endpoint | `postCache`? | Why |
+|---|---|---|
+| `POST /trips/search` | yes | a search; POST only because the filters are large |
+| `POST /reports/generate` | yes | derives a report, changes nothing |
+| `POST /pricing/calculate` | yes | pure calculation |
+| `POST /trips` | **no** | creates a trip |
+| `POST /auth/login` | **no** | creates a session |
+| `POST /trips/{id}/complete` | **no** | changes state |
+| any multipart / `FormData` upload | **no** | see the key-builder note below |
+
+Pointing it at a mutation breaks things in two ways, and the first is the one
+that bites hardest:
+
+1. `CachePolicy.forceCache` **looks the store up before sending**. Repeat a
+   mutation with an identical body inside `maxStale` and the request is
+   answered from cache and never leaves the device — while the UI reports
+   success. `maxStale` is exactly how long that suppression window lasts.
+2. On a dead connection the stored response is served instead of the error.
+   `handleWrite` sees success, and because `DioCacheInterceptor` runs *before*
+   `OfflineSyncInterceptor`, the request never reaches the queue — the write
+   is lost silently.
+
+Both risks are why `allowPostMethod` must never go on the **global** default
+options: there it would apply to every POST in the app at once.
+
+**Use it on a single call** — no registry needed:
+
+```dart
+ApiCallHandler.handleRead<List<Trip>>(
+  mode: CacheMode.remoteOnly,
+  remoteCall: () async {
+    final res = await api.post(
+      '/trips/search',
+      data: filters,
+      cacheOptions: CacheService.instance.postCache(
+        maxStale: const Duration(minutes: 10),
+      ),
+    );
+    return (res.data as List).map((e) => Trip.fromJson(e)).toList();
+  },
+);
+```
+
+**Or centrally**, if you already run a registry. `$` anchors the pattern, and it
+must precede any broader `^/trips` rule since the first match wins:
+
+```dart
+..register(RegExp(r'^/trips/search$'), CacheService.instance.postCache())
+..register(RegExp(r'^/trips'), CacheService.instance.refreshAndStore())
+```
+
+The broader `^/trips` rule does **not** cache `POST /trips` — its options leave
+`allowPostMethod` off, so the interceptor skips the request entirely. Only
+`postCache` opts a POST in.
+
+**Why the custom key builder.** `bodyAwareCacheKeyBuilder` sorts map keys, so
+`{a:1, b:2}` and `{b:2, a:1}` resolve to the same entry while two genuinely
+different filter sets stay apart. Bodies that are not JSON-encodable get a
+random key so they can never hit cache: `FormData` does not override
+`toString()`, so every instance renders identically and they would otherwise
+*all* collide on one entry. Never route an upload through `postCache`.
 
 ---
 

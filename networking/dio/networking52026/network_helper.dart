@@ -9,8 +9,6 @@ import 'package:idara_tracking_app/core/networking/networking.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:idara_tracking_app/core/networking/api_constant.dart';
-
 // Future<void> _registerNetworkStack() async {
 //   // await Hive.initFlutter();
 //   await CacheService.instance.init();
@@ -61,13 +59,21 @@ class NetworkHelper {
   final void Function()? _onForceLogout;
   final void Function(TelemetryEvent)? _onTelemetry;
 
+  /// Optional per-path cache policy. When supplied, an
+  /// [EndpointCacheInterceptor] resolves each request's [CacheOptions] from it
+  /// and the registry's `fallback` becomes the interceptor default — so an
+  /// endpoint you forgot to register inherits that instead of a blanket
+  /// policy. When null, every request uses [CacheService.defaultOptions].
+  final EndpointCacheRegistry? _cacheRegistry;
+
   NetworkHelper(
     this._tokenStore,
     this._prefs, {
     this._syncQueue,
     this._onForceLogout,
     this._onTelemetry,
-  });
+    EndpointCacheRegistry? cacheRegistry,
+  }) : _cacheRegistry = cacheRegistry;
 
   Future<Dio> createDio({
     int defaultMaxRetries = 3,
@@ -121,8 +127,14 @@ class NetworkHelper {
         // onForceLogout: () => getIt<AuthBloc>().add(const LogoutEvent()),
       ),
 
-      // 5. Cache BEFORE offline sync — on network error, serves stale cache.
-      DioCacheInterceptor(options: CacheService.instance.defaultOptions),
+      // 5. Resolves per-path CacheOptions. Must sit immediately before the
+      //    cache interceptor so the options are attached when it runs.
+      if (_cacheRegistry != null) EndpointCacheInterceptor(_cacheRegistry),
+
+      // 6. Cache BEFORE offline sync — on network error, serves stale cache.
+      DioCacheInterceptor(
+        options: _cacheRegistry?.fallback ?? CacheService.instance.defaultOptions,
+      ),
 
       // 6. Retry BEFORE offline sync — exhaust retries first.
       RetryInterceptor(

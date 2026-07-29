@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:http_cache_hive_store/http_cache_hive_store.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 /// A singleton service that manages HTTP cache configuration and storage.
 ///
@@ -115,6 +118,75 @@ class CacheService {
   CacheOptions refreshRespectingHeaders({
     Duration maxStale = const Duration(days: 7),
   }) => buildOptions(policy: CachePolicy.refresh, maxStale: maxStale);
+
+  /// Caches a **read-shaped POST** (search, filter, report) — an endpoint that
+  /// uses POST only because its payload is too big for a query string, and
+  /// that changes nothing on the server.
+  ///
+  /// The test: *if the same request is sent twice, does something happen twice
+  /// on the server?* Yes → never use this. No → safe.
+  ///
+  /// Pointing this at a real mutation breaks it in two ways:
+  ///
+  /// 1. `CachePolicy.forceCache` looks the store up **before sending**. Repeat
+  ///    a mutation with an identical body inside [maxStale] and the request is
+  ///    answered from cache and never leaves the device, while the UI reports
+  ///    success. [maxStale] is exactly how long that suppression lasts.
+  /// 2. On a dead connection the stored response is served instead of the
+  ///    error. `handleWrite` sees success, and since [DioCacheInterceptor]
+  ///    runs before [OfflineSyncInterceptor] the request is never queued —
+  ///    the write is lost silently.
+  ///
+  /// Safe: `POST /trips/search`, `/reports/generate`, `/pricing/calculate`.
+  /// Never: `POST /trips`, `/auth/login`, `/trips/{id}/complete`, any upload.
+  ///
+  /// Uses [bodyAwareCacheKeyBuilder], because the default key builder hashes
+  /// the URL alone — every payload posted to the same path would otherwise
+  /// share one cache entry.
+  CacheOptions postCache({Duration maxStale = const Duration(minutes: 10)}) =>
+      buildOptions(
+        policy: CachePolicy.forceCache,
+        maxStale: maxStale,
+        allowPostMethod: true,
+        keyBuilder: bodyAwareCacheKeyBuilder,
+      );
+
+  /// Cache key derived from the URL **and** the request body.
+  ///
+  /// Map keys are sorted so two equal bodies serialized in a different order
+  /// still land on the same entry.
+  static String bodyAwareCacheKeyBuilder({
+    required Uri url,
+    Map<String, String>? headers,
+    Object? body,
+  }) => const Uuid().v5(Namespace.url.value, '$url::${_stableBody(body)}');
+
+  static String _stableBody(Object? body) {
+    if (body == null) return '';
+    try {
+      return jsonEncode(_sortKeys(body));
+    } catch (_) {
+      // Not JSON-encodable — FormData, streams, raw bytes. FormData does not
+      // override toString(), so every instance renders as "Instance of
+      // 'FormData'" and they would all collide on a single entry. Emit a
+      // unique value instead so the lookup always misses. Multipart uploads
+      // should not be routed through [postCache] in the first place.
+      return const Uuid().v4();
+    }
+  }
+
+  static Object? _sortKeys(Object? value) {
+    if (value is Map) {
+      final entries =
+          value.entries
+              .map((e) => MapEntry(e.key.toString(), _sortKeys(e.value)))
+              .toList()
+            ..sort((a, b) => a.key.compareTo(b.key));
+      return Map<String, Object?>.fromEntries(entries);
+    }
+    if (value is List) return value.map(_sortKeys).toList();
+    return value;
+  }
 
   /// Clears all cached responses.
   Future<void> clearAll() async {
