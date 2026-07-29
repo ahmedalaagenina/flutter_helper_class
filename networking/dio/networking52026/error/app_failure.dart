@@ -22,6 +22,10 @@ class ServerFailure extends AppFailure {
   const ServerFailure(super.message, [super.code, super.data]);
 }
 
+class AccessForbiddenFailure extends AppFailure {
+  const AccessForbiddenFailure(super.message, [super.code, super.data]);
+}
+
 class CacheFailure extends AppFailure {
   const CacheFailure(super.message, [super.code, super.data]);
 }

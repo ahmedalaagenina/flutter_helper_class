@@ -3,12 +3,18 @@ import 'package:flutter/material.dart';
 
 /// Contract for typography implementations
 abstract class BaseTypography extends Equatable {
-  final String? _fontFamily;
-  final double fontSizeScaleFactor; // Changed to public
+  final String _fontFamily;
+  final List<String> _fontFamilyFallback;
+  final double fontSizeScaleFactor;
 
-  const BaseTypography(this._fontFamily, {this.fontSizeScaleFactor = 1.0});
+  const BaseTypography(
+    this._fontFamily, {
+    List<String> fontFamilyFallback = const [],
+    this.fontSizeScaleFactor = 1.0,
+  }) : _fontFamilyFallback = fontFamilyFallback;
 
-  String? get fontFamily => _fontFamily;
+  String get fontFamily => _fontFamily;
+  List<String> get fontFamilyFallback => _fontFamilyFallback;
 
   // Base method to create base style - each subclass implements this
   TextStyle createBaseStyle();
@@ -37,5 +43,9 @@ abstract class BaseTypography extends Equatable {
   BaseTypography withFontSizeScaleFactor(double scaleFactor);
 
   @override
-  List<Object?> get props => [fontFamily, fontSizeScaleFactor];
+  List<Object?> get props => [
+    fontFamily,
+    fontFamilyFallback,
+    fontSizeScaleFactor,
+  ];
 }

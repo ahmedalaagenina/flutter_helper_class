@@ -1,5 +1,5 @@
-import 'package:idara_driver/core/local_storage/secure_storage.dart';
-import 'package:idara_driver/core/local_storage/storage_keys.dart';
+import 'package:idara_tracking_app/core/local_storage/secure_storage.dart';
+import 'package:idara_tracking_app/core/local_storage/storage_keys.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 abstract class AuthTokenStore {

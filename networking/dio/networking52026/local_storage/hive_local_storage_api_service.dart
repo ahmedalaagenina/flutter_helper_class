@@ -1,8 +1,8 @@
 import 'package:hive_ce/hive.dart';
-import 'package:idara_driver/core/networking/local_storage/local_storage_api_service.dart';
+import 'package:idara_tracking_app/core/networking/local_storage/local_storage_api_service.dart';
 
 class HiveLocalStorageApiService implements LocalStorageApiService {
-  final Box box;
+  final Box<dynamic> box;
 
   HiveLocalStorageApiService(this.box);
 

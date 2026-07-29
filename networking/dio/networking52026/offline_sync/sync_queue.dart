@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
-import 'package:idara_driver/core/networking/offline_sync/queued_request.dart';
+import 'package:idara_tracking_app/core/networking/offline_sync/queued_request.dart';
 
 /// Persistent FIFO queue for offline requests, backed by Hive.
 ///

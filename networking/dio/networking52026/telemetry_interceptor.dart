@@ -75,7 +75,10 @@ class TelemetryInterceptor extends Interceptor {
   }
 
   @override
-  void onResponse(Response response, ResponseInterceptorHandler handler) {
+  void onResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+  ) {
     _emit(
       response.requestOptions,
       statusCode: response.statusCode ?? 0,
@@ -103,8 +106,7 @@ class TelemetryInterceptor extends Interceptor {
     final duration = startMicros == null
         ? Duration.zero
         : Duration(
-            microseconds:
-                DateTime.now().microsecondsSinceEpoch - startMicros,
+            microseconds: DateTime.now().microsecondsSinceEpoch - startMicros,
           );
 
     try {

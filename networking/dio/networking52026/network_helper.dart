@@ -4,11 +4,12 @@ import 'package:dio/dio.dart';
 import 'package:dio/io.dart' as ad;
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_driver/core/networking/networking.dart';
+import 'package:idara_tracking_app/core/local_storage/storage_keys.dart';
+import 'package:idara_tracking_app/core/networking/networking.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../networking/api_constant.dart';
+import 'package:idara_tracking_app/core/networking/api_constant.dart';
 
 // Future<void> _registerNetworkStack() async {
 //   // await Hive.initFlutter();
@@ -63,12 +64,10 @@ class NetworkHelper {
   NetworkHelper(
     this._tokenStore,
     this._prefs, {
-    SyncQueue? syncQueue,
-    void Function()? onForceLogout,
-    void Function(TelemetryEvent)? onTelemetry,
-  }) : _syncQueue = syncQueue,
-       _onForceLogout = onForceLogout,
-       _onTelemetry = onTelemetry;
+    this._syncQueue,
+    this._onForceLogout,
+    this._onTelemetry,
+  });
 
   Future<Dio> createDio({
     int defaultMaxRetries = 3,
@@ -111,7 +110,6 @@ class NetworkHelper {
       DuplicateRequestInterceptor(),
 
       // 4. Auth.
-
       AuthInterceptor(
         tokenStore: _tokenStore,
         dio: dio,
@@ -119,10 +117,9 @@ class NetworkHelper {
         refreshPath: ApiConstant.refreshToken,
         publicPaths: [ApiConstant.login, ApiConstant.register],
         skipRefreshPaths: [ApiConstant.revokeAllTokens],
-        localeProvider: () => prefs.getString(StorageKeys.locale) ?? 'en',
-        onForceLogout: () => getIt<AuthBloc>().add(const LogoutEvent()),
-       )
-     
+        localeProvider: () => _prefs.getString(StorageKeys.locale) ?? 'en',
+        // onForceLogout: () => getIt<AuthBloc>().add(const LogoutEvent()),
+      ),
 
       // 5. Cache BEFORE offline sync — on network error, serves stale cache.
       DioCacheInterceptor(options: CacheService.instance.defaultOptions),
@@ -138,10 +135,8 @@ class NetworkHelper {
       if (_syncQueue != null)
         OfflineSyncInterceptor(
           queue: _syncQueue,
-          config: OfflineSyncConfig(
+          config: const OfflineSyncConfig(
             returnSyntheticResponse: false,
-            defaultOfflineMessage:
-                'You are offline. Request queued and will sync automatically.',
             excludedPaths: [
               ApiConstant.login,
               ApiConstant.verifyOtp,
@@ -199,19 +194,22 @@ class NetworkHelper {
       if (_onTelemetry != null) TelemetryInterceptor(onEvent: _onTelemetry),
       IdempotencyInterceptor(),
       AuthInterceptor(
-        prefs: _prefs,
         tokenStore: _tokenStore,
         dio: replayDio,
         refreshDio: refreshDio,
         onForceLogout: _onForceLogout,
+        refreshPath: ApiConstant.refreshToken,
+        publicPaths: [ApiConstant.login, ApiConstant.register],
+        skipRefreshPaths: [ApiConstant.revokeAllTokens],
+        localeProvider: () => _prefs.getString(StorageKeys.locale) ?? 'en',
+        // onForceLogout: () => getIt<AuthBloc>().add(const LogoutEvent()),
       ),
       RetryInterceptor(
         dio: replayDio,
         maxRetries: defaultMaxRetries,
         initialDelay: defaultRetryDelay,
       ),
-      if (kDebugMode)
-        PrettyDioLogger(requestHeader: true, requestBody: true),
+      if (kDebugMode) PrettyDioLogger(requestHeader: true, requestBody: true),
     ]);
 
     if (!kIsWeb) {

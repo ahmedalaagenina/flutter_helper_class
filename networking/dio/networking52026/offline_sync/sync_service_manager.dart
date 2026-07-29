@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_driver/core/networking/networking.dart';
+import 'package:idara_tracking_app/core/networking/networking.dart';
 
 /// Monitors connectivity and processes the offline sync queue
 /// when the device comes back online.
@@ -38,14 +38,11 @@ class SyncServiceManager {
     /// built with [NetworkHelper.createReplayDio] — only Auth + Retry, no
     /// duplicate-detection, no cache, no offline-sync. Passing the main Dio
     /// still works (replayMarker prevents re-queue) but wastes cycles.
-    required Dio dio,
-    required SyncQueue queue,
-    required NetworkInfo networkInfo,
-    OfflineSyncConfig config = const OfflineSyncConfig(),
-  }) : _dio = dio,
-       _queue = queue,
-       _networkInfo = networkInfo,
-       _config = config;
+    required this._dio,
+    required this._queue,
+    required this._networkInfo,
+    this._config = const OfflineSyncConfig(),
+  });
 
   /// Starts listening to connectivity changes.
   Future<void> init() async {
@@ -147,7 +144,7 @@ class SyncServiceManager {
 
       // Delay between items to avoid flooding
       if (!_disposed) {
-        await Future.delayed(_config.processingDelay);
+        await Future<void>.delayed(_config.processingDelay);
       }
     }
 
@@ -160,9 +157,7 @@ class SyncServiceManager {
 
   /// Replays a single [QueuedRequest] via Dio.
   Future<void> _replayRequest(QueuedRequest request) async {
-    final extra = <String, dynamic>{
-      OfflineSyncInterceptor.replayMarker: true,
-    };
+    final extra = <String, dynamic>{OfflineSyncInterceptor.replayMarker: true};
 
     // Preserve idempotency across replay so the server can dedupe.
     if (request.idempotencyKey != null) {
@@ -193,7 +188,7 @@ class SyncServiceManager {
       }
     }
 
-    await _dio.request(
+    await _dio.request<dynamic>(
       url,
       data: body,
       queryParameters: request.queryParameters,

@@ -3,10 +3,9 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_driver/core/networking/error/server_message_extractor.dart';
-import 'package:idara_driver/core/networking/networking.dart';
-import 'package:idara_driver/generated/l10n.dart';
-import 'package:idara_driver/core/util/app_log.dart';
+import 'package:idara_tracking_app/core/networking/networking.dart';
+import 'package:idara_tracking_app/core/util/app_log.dart';
+import 'package:idara_tracking_app/generated/l10n.dart';
 
 class ApiFailureHandler {
   ApiFailureHandler._();
@@ -38,9 +37,9 @@ class ApiFailureHandler {
       case CacheException():
         return const CacheException();
       case FormatException():
-        return CustomException(S.current.invalidDataFormat);
+        return CustomException(message: S.current.invalidDataFormat);
       default:
-        return UnknownException(S.current.unknownError);
+        return UnknownException(message: S.current.unknownError);
     }
   }
 
@@ -51,19 +50,22 @@ class ApiFailureHandler {
     final String message = _extractMessage(data);
     switch (error.type) {
       case DioExceptionType.cancel:
-        return CustomException(S.current.requestCancelled);
+        return CustomException(message: S.current.requestCancelled);
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
+      case DioExceptionType.transformTimeout:
         return const RequestTimeoutException();
       case DioExceptionType.badResponse:
         return _mapStatusCodeToException(statusCode, message);
       case DioExceptionType.badCertificate:
-        return CustomException(S.current.badCertificate);
+        return CustomException(message: S.current.badCertificate);
       case DioExceptionType.connectionError:
-        return NoInternetException(S.current.noInternetConnection);
+        return NoInternetException(message: S.current.noInternetConnection);
       case DioExceptionType.unknown:
-        return UnknownException(error.message ?? S.current.unexpectedDioError);
+        return UnknownException(
+          message: error.message ?? S.current.unexpectedDioError,
+        );
     }
   }
 
@@ -75,41 +77,54 @@ class ApiFailureHandler {
     switch (code) {
       case 400:
         return BadRequestException(
-          hasServerMessage ? message : S.current.badRequestCheckInput,
+          message: hasServerMessage ? message : S.current.badRequestCheckInput,
+          code: 400,
         );
       case 401:
         return UnauthorizedException(
-          hasServerMessage ? message : S.current.unauthorizedPleaseLogin,
+          message: hasServerMessage
+              ? message
+              : S.current.unauthorizedPleaseLogin,
+          code: 401,
         );
       case 403:
         return UnauthorizedException(
-          hasServerMessage ? message : S.current.accessForbidden,
+          message: hasServerMessage ? message : S.current.accessForbidden,
+          code: 403,
         );
       case 404:
         return NotFoundException(
-          hasServerMessage ? message : S.current.resourceNotFound,
+          message: hasServerMessage ? message : S.current.resourceNotFound,
+          code: 404,
         );
       case 410:
         return NotFoundException(
-          hasServerMessage ? message : S.current.resourceNotFound,
+          message: hasServerMessage ? message : S.current.resourceNotFound,
+          code: 410,
         );
       case 422:
         return InvalidInputException(
-          hasServerMessage ? message : S.current.badRequestCheckInput,
+          message: hasServerMessage ? message : S.current.badRequestCheckInput,
+          code: 422,
         );
       case 500:
         return ServerException(
-          hasServerMessage ? message : S.current.serverErrorTryLater,
+          message: hasServerMessage ? message : S.current.serverErrorTryLater,
+          code: 500,
         );
       case 503:
         return ServerException(
-          hasServerMessage ? message : S.current.serviceUnavailableTryLater,
+          message: hasServerMessage
+              ? message
+              : S.current.serviceUnavailableTryLater,
+          code: 503,
         );
       default:
         return FetchDataException(
-          hasServerMessage
+          message: hasServerMessage
               ? message
-              : "${S.current.genericErrorTryAgain} ($code)",
+              : '${S.current.genericErrorTryAgain} ($code)',
+          code: code,
         );
     }
   }
@@ -124,9 +139,9 @@ class ApiFailureHandler {
 
   /// Logs the original and mapped error types.
   static void _logError(dynamic original, AppException mapped) {
-    AppLog.w("[ApiFailureHandler] Original error: $original");
+    AppLog.w('[ApiFailureHandler] Original error: $original');
     AppLog.e(
-      "[ApiFailureHandler] Mapped to: ${mapped.runtimeType} — ${mapped.message}",
+      '[ApiFailureHandler] Mapped to: ${mapped.runtimeType} — ${mapped.message}',
       mapped.runtimeType,
     );
   }

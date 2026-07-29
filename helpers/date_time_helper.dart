@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:idara_tracking_app/generated/l10n.dart';
 import 'package:intl/intl.dart';
 
 class DateTimeHelper {
@@ -7,15 +8,15 @@ class DateTimeHelper {
   }
 
   static DateTime fromStringToDate(String dateTime) {
-    var parse = DateTime.parse(dateTime);
+    final parse = DateTime.parse(dateTime);
     return DateTime(parse.year, parse.month, parse.day);
     // return Intl.withLocale(
     //     'en', () => DateFormat("yyyy-MM-dd").parse(dateTime));
   }
 
   static String fromStringToTime(String dateTime) {
-    var listTime = dateTime.split(':');
-    var parse = DateTime(
+    final listTime = dateTime.split(':');
+    final parse = DateTime(
       DateTime.now().year,
       DateTime.now().month,
       DateTime.now().day,
@@ -46,8 +47,8 @@ class DateTimeHelper {
   }
 
   static String stringToTime(String dateTime, Locale locale) {
-    List<String> times = dateTime.split(":");
-    DateTime time = DateTime(
+    final List<String> times = dateTime.split(':');
+    final DateTime time = DateTime(
       0,
       0,
       0,
@@ -81,6 +82,19 @@ class DateTimeHelper {
     return daysInMonth[month - 1];
   }
 
+  /// Returns the difference (in full days) between the provided date and today.
+  /// Yesterday : calculateDifference(date) == -1.
+  /// Today : calculateDifference(date) == 0.
+  /// Tomorrow : calculateDifference(date) == 1.
+  static int calculateDifferenceInDays(DateTime date) {
+    final DateTime now = DateTime.now();
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+    ).difference(DateTime(now.year, now.month, now.day)).inDays;
+  }
+
   static String formatExpiresAt(DateTime? expiresAt) {
     if (expiresAt == null) return S.current.noExpiry;
 
@@ -102,17 +116,17 @@ class DateTimeHelper {
   }
 
   static String getTimeDifferenceFromNow(DateTime dateTime) {
-    Duration difference = DateTime.now().difference(dateTime);
+    final Duration difference = DateTime.now().difference(dateTime);
     if (difference.inSeconds < 5) {
-      return "Just now";
+      return 'Just now';
     } else if (difference.inMinutes < 1) {
-      return "${difference.inSeconds}s ago";
+      return '${difference.inSeconds}s ago';
     } else if (difference.inHours < 1) {
-      return "${difference.inMinutes}m ago";
+      return '${difference.inMinutes}m ago';
     } else if (difference.inHours < 24) {
-      return "${difference.inHours}h ago";
+      return '${difference.inHours}h ago';
     } else {
-      return "${difference.inDays}d ago";
+      return '${difference.inDays}d ago';
     }
   }
 
@@ -120,14 +134,14 @@ class DateTimeHelper {
     List<DateTime> firstDates,
     List<DateTime> secondDates,
   ) {
-    Set<DateTime> set1 = Set<DateTime>.from(firstDates);
-    Set<DateTime> set2 = Set<DateTime>.from(secondDates);
-    Set<DateTime> commonDates = set1.intersection(set2);
+    final Set<DateTime> set1 = Set<DateTime>.from(firstDates);
+    final Set<DateTime> set2 = Set<DateTime>.from(secondDates);
+    final Set<DateTime> commonDates = set1.intersection(set2);
     return commonDates.toList();
   }
 
   static List<DateTime> reArrangeDatesByBefore(List<DateTime> dates) {
-    List<DateTime> dateList = dates
+    final List<DateTime> dateList = dates
         .map((e) => fromStringToDate(e.toString()))
         .toList();
 
@@ -136,7 +150,7 @@ class DateTimeHelper {
   }
 
   static List<DateTime> reArrangeDatesByAfter(List<DateTime> dates) {
-    List<DateTime> dateList = dates
+    final List<DateTime> dateList = dates
         .map((e) => fromStringToDate(e.toString()))
         .toList();
 
@@ -145,7 +159,7 @@ class DateTimeHelper {
   }
 
   static List<DateTime> getDaysInBetween(DateTime startDate, DateTime endDate) {
-    List<DateTime> days = [];
+    final List<DateTime> days = [];
     for (int i = 0; i <= endDate.difference(startDate).inDays; i++) {
       days.add(startDate.add(Duration(days: i)));
     }
@@ -153,7 +167,7 @@ class DateTimeHelper {
   }
 
   static int getDifferenceInDays(DateTime startDate, DateTime endDate) {
-    List<DateTime> days = [];
+    final List<DateTime> days = [];
     for (int i = 0; i <= endDate.difference(startDate).inDays; i++) {
       days.add(startDate.add(Duration(days: i)));
     }
@@ -214,7 +228,7 @@ class DateTimeHelper {
   }
 
   static DateTime findFirstDateOfTheMonth(DateTime dateTime) {
-    return DateTime(dateTime.year, dateTime.month, 1);
+    return DateTime(dateTime.year, dateTime.month);
   }
 
   static DateTime findLastDateOfTheMonth(DateTime dateTime) {
@@ -240,7 +254,7 @@ class DateTimeHelper {
   }
 
   static DateTime findFirstDateOfTheYear(DateTime dateTime) {
-    return DateTime(dateTime.year, 1, 1);
+    return DateTime(dateTime.year);
   }
 
   static DateTime findLastDateOfTheYear(DateTime dateTime) {
@@ -266,20 +280,20 @@ class DateTimeHelper {
   }
 
   static bool isInThisWeek(DateTime dateTime) {
-    var firstDateOfTheWeek = findFirstDateOfTheWeek(DateTime.now());
-    var lastDateOfTheWeek = findLastDateOfTheWeek(DateTime.now());
+    final firstDateOfTheWeek = findFirstDateOfTheWeek(DateTime.now());
+    final lastDateOfTheWeek = findLastDateOfTheWeek(DateTime.now());
     return dateTime.isBetween(from: firstDateOfTheWeek, to: lastDateOfTheWeek);
   }
 
   static bool isInLastWeek(DateTime dateTime) {
-    var firstDateOfTheWeek = findFirstDateOfPreviousWeek(DateTime.now());
-    var lastDateOfTheWeek = findLastDateOfPreviousWeek(DateTime.now());
+    final firstDateOfTheWeek = findFirstDateOfPreviousWeek(DateTime.now());
+    final lastDateOfTheWeek = findLastDateOfPreviousWeek(DateTime.now());
     return dateTime.isBetween(from: firstDateOfTheWeek, to: lastDateOfTheWeek);
   }
 
   static bool isInThisMonth(DateTime dateTime) {
-    var firstDateOfTheMonth = findFirstDateOfTheMonth(DateTime.now());
-    var lastDateOfTheMonth = findLastDateOfTheMonth(DateTime.now());
+    final firstDateOfTheMonth = findFirstDateOfTheMonth(DateTime.now());
+    final lastDateOfTheMonth = findLastDateOfTheMonth(DateTime.now());
     return dateTime.isBetween(
       from: firstDateOfTheMonth,
       to: lastDateOfTheMonth,
@@ -287,8 +301,8 @@ class DateTimeHelper {
   }
 
   static bool isInLastMonth(DateTime dateTime) {
-    var firstDateOfTheMonth = findFirstDateOfPreviousMonth(DateTime.now());
-    var lastDateOfTheMonth = findLastDateOfPreviousMonth(DateTime.now());
+    final firstDateOfTheMonth = findFirstDateOfPreviousMonth(DateTime.now());
+    final lastDateOfTheMonth = findLastDateOfPreviousMonth(DateTime.now());
     return dateTime.isBetween(
       from: firstDateOfTheMonth,
       to: lastDateOfTheMonth,
@@ -296,14 +310,14 @@ class DateTimeHelper {
   }
 
   static bool isInThisYear(DateTime dateTime) {
-    var firstDateOfTheYear = findFirstDateOfTheYear(DateTime.now());
-    var lastDateOfTheYear = findLastDateOfTheYear(DateTime.now());
+    final firstDateOfTheYear = findFirstDateOfTheYear(DateTime.now());
+    final lastDateOfTheYear = findLastDateOfTheYear(DateTime.now());
     return dateTime.isBetween(from: firstDateOfTheYear, to: lastDateOfTheYear);
   }
 
   static bool isInLastYear(DateTime dateTime) {
-    var firstDateOfPreviousYear = findFirstDateOfPreviousYear(DateTime.now());
-    var lastDateOfPreviousYear = findLastDateOfPreviousYear(DateTime.now());
+    final firstDateOfPreviousYear = findFirstDateOfPreviousYear(DateTime.now());
+    final lastDateOfPreviousYear = findLastDateOfPreviousYear(DateTime.now());
     return dateTime.isBetween(
       from: firstDateOfPreviousYear,
       to: lastDateOfPreviousYear,
@@ -315,7 +329,7 @@ class DateTimeHelper {
   /// Today : calculateDifference(date) == 0.
   /// Tomorrow : calculateDifference(date) == 1.
   static int calculateDifference(DateTime date) {
-    DateTime now = DateTime.now();
+    final DateTime now = DateTime.now();
     return DateTime(
       date.year,
       date.month,

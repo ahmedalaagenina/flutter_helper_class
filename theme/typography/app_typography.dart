@@ -151,16 +151,28 @@ class DefaultTypography extends BaseTypography {
 }
 
 class AppTypography extends BaseTypography {
+  /// Primary font family for Latin text.
+  static const String primaryFontFamily = 'DINPro';
+
+  /// Arabic glyphs fallback when the primary family does not contain them.
+  static const List<String> defaultFontFamilyFallback = ['DINNextArabic'];
+
   const AppTypography({
-    String fontFamily = 'Roboto',
+    String fontFamily = primaryFontFamily,
+    List<String> fontFamilyFallback = defaultFontFamilyFallback,
     double fontSizeScaleFactor = 1.0,
-  }) : super(fontFamily, fontSizeScaleFactor: fontSizeScaleFactor);
+  }) : super(
+         fontFamily,
+         fontFamilyFallback: fontFamilyFallback,
+         fontSizeScaleFactor: fontSizeScaleFactor,
+       );
 
   // Create base style with the specified font family
   @override
   TextStyle createBaseStyle() {
     return TextStyle(
       fontFamily: fontFamily,
+      fontFamilyFallback: fontFamilyFallback,
       letterSpacing: 0.15,
       fontWeight: FontWeight.normal,
       height: 1.25, // Improved line height
@@ -287,6 +299,7 @@ class AppTypography extends BaseTypography {
   BaseTypography withFontSizeScaleFactor(double scaleFactor) {
     return AppTypography(
       fontFamily: fontFamily,
+      fontFamilyFallback: fontFamilyFallback,
       fontSizeScaleFactor: scaleFactor,
     );
   }

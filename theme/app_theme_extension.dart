@@ -80,7 +80,6 @@ extension ThemeContextExtension on BuildContext {
 
   // Get the theme BLoC
   ThemeBloc get themeBloc => read<ThemeBloc>();
-  ThemeData get theme => Theme.of(this);
 
   // Get the app theme extension from the current theme
   AppThemeExtension get appTheme {
@@ -94,16 +93,18 @@ extension ThemeContextExtension on BuildContext {
 
   // Get colors directly
   BaseColors get colors => appTheme.colors;
-  ColorScheme get colorScheme => Theme.of(this).colorScheme;
 
   // Get common values from the theme extension
   EdgeInsetsGeometry get screenPadding => appTheme.screenPadding;
   BorderRadius get borderRadius => appTheme.borderRadius;
   Duration get animationDuration => appTheme.animationDuration;
 
-  // Get current brightness
+  // 1. Raw current rendered brightness from Theme.of(context).
   Brightness get brightness => Theme.of(this).brightness;
   bool get isDarkMode => brightness == Brightness.dark;
+  bool get isLightMode => !isDarkMode;
+  bool get isSystemThemeEnabled => themeState.themeMode == ThemeMode.system;
+  ThemeMode get currentThemeMode => themeState.themeMode;
 
   /// local
   // Get locale

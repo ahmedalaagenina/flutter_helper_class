@@ -70,14 +70,25 @@ class AppTheme {
         foregroundColor: colorScheme.onSurface,
         elevation: elevation,
         scrolledUnderElevation: 0, // to prevent changing color when scrolling
+        titleTextStyle: typography.headlineSmall.copyWith(
+          color: colors.onSurface,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.3,
+        ),
       ),
 
       cardTheme: CardThemeData(
-        color: colorScheme.surfaceContainer,
-        elevation: 0,
+        color: colorScheme.surface,
+        elevation: 2,
+        shadowColor: colorScheme.shadow.withValues(
+          alpha: colorScheme.brightness == Brightness.dark ? 0.18 : 0.08,
+        ),
+        surfaceTintColor: Colors.transparent,
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: colors.outline.withValues(alpha: 0.5)),
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: colors.outline.withValues(alpha: 0.35)),
         ),
       ),
 

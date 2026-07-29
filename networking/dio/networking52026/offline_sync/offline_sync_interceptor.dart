@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_driver/core/networking/idempotency_interceptor.dart';
-import 'package:idara_driver/core/networking/offline_sync/offline_sync_config.dart';
-import 'package:idara_driver/core/networking/offline_sync/queued_request.dart';
-import 'package:idara_driver/core/networking/offline_sync/sync_queue.dart';
+import 'package:idara_tracking_app/core/networking/idempotency_interceptor.dart';
+import 'package:idara_tracking_app/core/networking/offline_sync/offline_sync_config.dart';
+import 'package:idara_tracking_app/core/networking/offline_sync/queued_request.dart';
+import 'package:idara_tracking_app/core/networking/offline_sync/sync_queue.dart';
 import 'package:uuid/uuid.dart';
 
 /// Dio interceptor that catches failed write requests when offline

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_esign/core/networking/auth_token_store.dart';
+import 'package:idara_tracking_app/core/networking/networking.dart';
 
 /// A self-contained, app-agnostic Dio auth interceptor.
 ///
@@ -70,26 +70,19 @@ class AuthInterceptor extends QueuedInterceptor {
   static const String _retryFlagKey = '_isRetryAfterRefresh';
 
   AuthInterceptor({
-    required AuthTokenStore tokenStore,
-    required Dio dio,
-    required Dio refreshDio,
+    required this._tokenStore,
+    required this._dio,
+    required this._refreshDio,
     required String refreshPath,
-    required List<String> publicPaths,
+    required this._publicPaths,
     List<String> skipRefreshPaths = const [],
-    Set<int> refreshStatusCodes = const {401},
+    this._refreshStatusCodes = const {401},
     String? Function(Object? responseData)? tokenExtractor,
-    String? Function()? localeProvider,
-    void Function()? onForceLogout,
-  }) : _tokenStore = tokenStore,
-       _dio = dio,
-       _refreshDio = refreshDio,
-       _refreshPath = refreshPath,
-       _publicPaths = publicPaths,
+    this._localeProvider,
+    this._onForceLogout,
+  }) : _refreshPath = refreshPath,
        _skipRefreshPaths = [refreshPath, ...skipRefreshPaths],
-       _refreshStatusCodes = refreshStatusCodes,
-       _tokenExtractor = tokenExtractor ?? _defaultTokenExtractor,
-       _localeProvider = localeProvider,
-       _onForceLogout = onForceLogout;
+       _tokenExtractor = tokenExtractor ?? _defaultTokenExtractor;
 
   /// Default response shape: `{ "data": { "token": "..." } }`.
   static String? _defaultTokenExtractor(Object? responseData) {
@@ -151,7 +144,7 @@ class AuthInterceptor extends QueuedInterceptor {
           final options = err.requestOptions;
           options.headers['Authorization'] = 'Bearer $currentTokenInStorage';
 
-          final response = await _dio.fetch(options);
+          final response = await _dio.fetch<dynamic>(options);
           return handler.resolve(response);
         }
 
@@ -167,7 +160,7 @@ class AuthInterceptor extends QueuedInterceptor {
           options.headers['Authorization'] = 'Bearer $newToken';
           options.extra[_retryFlagKey] = true;
 
-          final response = await _dio.fetch(options);
+          final response = await _dio.fetch<dynamic>(options);
           return handler.resolve(response);
         } else {
           debugPrint('AuthInterceptor: Token refresh returned empty token.');
@@ -218,7 +211,7 @@ class AuthInterceptor extends QueuedInterceptor {
   Future<String?> _doRefreshToken() async {
     final currentToken = await _tokenStore.getToken();
 
-    final response = await _refreshDio.post(
+    final response = await _refreshDio.post<dynamic>(
       _refreshPath,
       options: Options(
         headers: {

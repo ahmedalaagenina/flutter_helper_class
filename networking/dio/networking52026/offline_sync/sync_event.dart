@@ -1,4 +1,4 @@
-import 'package:idara_driver/core/networking/offline_sync/queued_request.dart';
+import 'package:idara_tracking_app/core/networking/offline_sync/queued_request.dart';
 
 /// Events emitted by [SyncManager] for UI consumption.
 ///

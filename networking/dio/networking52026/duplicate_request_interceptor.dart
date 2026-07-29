@@ -2,8 +2,7 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-
-import '../networking/method_type.dart';
+import 'package:idara_tracking_app/core/networking/method_type.dart';
 
 /// Dio interceptor that prevents duplicate in-flight mutating requests.
 ///
@@ -65,7 +64,7 @@ class DuplicateRequestInterceptor extends Interceptor {
   }
 
   @override
-  void onResponse(Response response, ResponseInterceptorHandler handler) {
+  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
     _removeSignature(response.requestOptions);
     handler.next(response);
   }

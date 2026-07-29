@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
-import 'package:idara_driver/core/networking/networking.dart';
+import 'package:idara_tracking_app/core/networking/networking.dart';
 
 /// Abstract class defining the interface for API services
 
@@ -77,7 +77,7 @@ abstract class ApiService {
   });
 
   // Download file
-  Future<Response> download(
+  Future<Response<dynamic>> download(
     String urlPath,
     String savePath, {
     void Function(int, int)? onReceiveProgress,

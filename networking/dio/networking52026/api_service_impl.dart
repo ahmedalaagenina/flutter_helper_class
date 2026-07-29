@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_driver/core/networking/networking.dart';
+import 'package:idara_tracking_app/core/networking/networking.dart';
 
 class ApiServiceImpl implements ApiService {
   final Dio _dio;
@@ -37,8 +38,9 @@ class ApiServiceImpl implements ApiService {
     CancelToken? cancelToken,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   }) async {
-    options = _mergeRetryOptions(options, retryOptions);
+    options = await _buildOptions(options, retryOptions, cacheOptions);
     final response = await _dio.get<T>(
       path,
       queryParameters: queryParameters,
@@ -60,8 +62,9 @@ class ApiServiceImpl implements ApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   }) async {
-    options = _mergeRetryOptions(options, retryOptions);
+    options = await _buildOptions(options, retryOptions, cacheOptions);
     final response = await _dio.post<T>(
       path,
       data: data,
@@ -85,8 +88,9 @@ class ApiServiceImpl implements ApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   }) async {
-    options = _mergeRetryOptions(options, retryOptions);
+    options = await _buildOptions(options, retryOptions, cacheOptions);
     final response = await _dio.put<T>(
       path,
       data: data,
@@ -108,8 +112,9 @@ class ApiServiceImpl implements ApiService {
     Options? options,
     CancelToken? cancelToken,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   }) async {
-    options = _mergeRetryOptions(options, retryOptions);
+    options = await _buildOptions(options, retryOptions, cacheOptions);
     final response = await _dio.delete<T>(
       path,
       data: data,
@@ -131,8 +136,9 @@ class ApiServiceImpl implements ApiService {
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
     RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
   }) async {
-    options = _mergeRetryOptions(options, retryOptions);
+    options = await _buildOptions(options, retryOptions, cacheOptions);
     final response = await _dio.patch<T>(
       path,
       data: data,
@@ -184,7 +190,7 @@ class ApiServiceImpl implements ApiService {
   // }
   // Download file
   @override
-  Future<Response> download(
+  Future<Response<dynamic>> download(
     String urlPath,
     String savePath, {
     void Function(int, int)? onReceiveProgress,
@@ -253,7 +259,7 @@ class ApiServiceImpl implements ApiService {
   Future<Response<T>> multipartRequest<T>(
     String path,
     MethodType methodType, {
-    Map<String, dynamic>? files,
+    required Map<String, FileData> files,
     Map<String, dynamic>? data,
     Map<String, dynamic>? queryParameters,
     Options? options,
@@ -407,6 +413,29 @@ class ApiServiceImpl implements ApiService {
     }
   }
 
+  /// Helper method to build Options with retry and cache options.
+  ///
+  /// When [cacheOptions] is null, the global [DioCacheInterceptor] defaults
+  /// are used. When provided, the per-request cache options override them.
+  Future<Options> _buildOptions(
+    Options? options,
+    RetryOptions? retryOptions,
+    CacheOptions? cacheOptions,
+  ) async {
+    var merged = _mergeRetryOptions(options, retryOptions);
+
+    if (cacheOptions != null) {
+      merged = merged.copyWith(
+        extra: <String, dynamic>{
+          ...?merged.extra,
+          ...cacheOptions.toExtra(),
+        },
+      );
+    }
+
+    return merged;
+  }
+
   // Helper method to merge retry options
   Options _mergeRetryOptions(Options? options, RetryOptions? retryOptions) {
     final mergedOptions = options ?? Options();
@@ -419,4 +448,14 @@ class ApiServiceImpl implements ApiService {
 
     return mergedOptions;
   }
+
+  //? Here's how to use each approach:
+  // This happens automatically for all requests:
+  // try {
+  //   final response = await apiService.get('/endpoint',
+  //       options: Options(extra: {'retryCount': 0}),); //? For handle Number of retries
+  // Success
+  // } catch (e) {
+  // All retries failed
+  // }
 }

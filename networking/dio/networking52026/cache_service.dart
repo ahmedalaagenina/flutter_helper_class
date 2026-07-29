@@ -40,7 +40,6 @@ class CacheService {
       store: _store,
       policy: CachePolicy.refreshForceCache,
       maxStale: const Duration(days: 7),
-      priority: CachePriority.normal,
       hitCacheOnNetworkFailure: true,
     );
 
@@ -103,10 +102,7 @@ class CacheService {
     _ensureInitialized();
 
     if (_store is HiveCacheStore) {
-      await _store.deleteFromPath(
-        pathPattern,
-        queryParams: queryParams,
-      );
+      await _store.deleteFromPath(pathPattern, queryParams: queryParams);
     }
   }
 

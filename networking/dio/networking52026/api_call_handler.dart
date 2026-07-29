@@ -3,10 +3,8 @@ import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_driver/core/networking/networking.dart';
-import 'package:idara_driver/core/util/app_log.dart';
-
-import 'error/app_failure.dart';
+import 'package:idara_tracking_app/core/networking/networking.dart';
+import 'package:idara_tracking_app/core/util/app_log.dart';
 
 typedef Data<T> = Either<AppFailure, T>;
 
@@ -53,8 +51,8 @@ class ApiCallHandler {
     final bool? online = networkInfo == null
         ? null
         : (verifyReachability
-            ? await networkInfo.hasInternetAccess
-            : await networkInfo.isConnected);
+              ? await networkInfo.hasInternetAccess
+              : await networkInfo.isConnected);
 
     if (online == false) {
       return _resolveCache<T>(
