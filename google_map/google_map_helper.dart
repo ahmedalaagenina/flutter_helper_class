@@ -92,7 +92,6 @@ class GoogleMapHelper {
         .then((icon) => sourceIcon = icon);
 
     return sourceIcon;
-    
   }
 
   static Map<PolylineId, Polyline> _addPolyLine(
