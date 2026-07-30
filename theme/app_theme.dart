@@ -120,7 +120,12 @@ class AppTheme {
         ),
       ),
       // Extensions
-      extensions: [AppThemeExtension(typography: typography, colors: colors)],
+      extensions: [
+        AppThemeExtension(typography: typography, colors: colors),
+        colorScheme.brightness == Brightness.dark
+            ? DeviceStatusColors.dark
+            : DeviceStatusColors.light,
+      ],
     );
   }
 

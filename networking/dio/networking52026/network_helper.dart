@@ -9,46 +9,106 @@ import 'package:idara_tracking_app/core/networking/networking.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Future<void> _registerNetworkStack() async {
-//   // await Hive.initFlutter();
+// Copy-paste registration for GetIt. Verified to compile against this folder.
+// Needs: get_it, hive_ce_flutter, flutter_secure_storage, shared_preferences.
+//
+// Order matters in two places: Hive.initFlutter() must precede SyncQueue.init()
+// and CacheService.init(), and NetworkHelper must be registered before Dio so
+// the main and replay Dios come from the same instance.
+//
+// Future<void> registerNetworkStack() async {
+//   // ── 1. Storage primitives ──────────────────────────────────────────
+//   getIt.registerSingleton<SharedPreferences>(
+//     await SharedPreferences.getInstance(),
+//   );
+//   getIt.registerSingleton<SecureStorage>(
+//     SecureStorageImpl(const FlutterSecureStorage()),
+//   );
+//
+//   // ── 2. Hive — MUST come before SyncQueue / CacheService ────────────
+//   await Hive.initFlutter();
 //   await CacheService.instance.init();
-
-//   // Initialize and register SyncQueue
+//
 //   final syncQueue = SyncQueue();
 //   await syncQueue.init();
-//   getIt.registerLazySingleton<SyncQueue>(() => syncQueue);
-
+//   getIt.registerSingleton<SyncQueue>(syncQueue);
+//
+//   final userBox = await Hive.openBox<dynamic>('user_box');
+//   getIt.registerSingleton<LocalStorageApiService>(
+//     HiveLocalStorageApiService(userBox),
+//   );
+//
+//   // ── 3. Leaf services ───────────────────────────────────────────────
 //   getIt.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl());
-//   getIt.registerFactory(() => CancelToken());
+//   getIt.registerFactory<CancelToken>(() => CancelToken());
 //   getIt.registerLazySingleton<AuthTokenStore>(
-//     () =>
-//         AuthTokenStoreImpl(secureStorage: getIt(), sharedPreferences: getIt()),
+//     () => AuthTokenStoreImpl(
+//       secureStorage: getIt<SecureStorage>(),
+//       sharedPreferences: getIt<SharedPreferences>(),
+//     ),
 //   );
+//
+//   // Teach the error handler how your backend shapes messages.
+//   ApiFailureHandler.messageExtractor = const DefaultServerMessageExtractor();
+//
+//   // ── 4. NetworkHelper — one instance builds BOTH Dios ───────────────
+//   getIt.registerSingletonAsync<NetworkHelper>(() async {
+//     return NetworkHelper(
+//       getIt<AuthTokenStore>(),
+//       getIt<SharedPreferences>(),
+//       syncQueue: syncQueue,
+//
+//       // Optional. Drop it and every request uses CacheService.defaultOptions.
+//       cacheRegistry: EndpointCacheRegistry(
+//         fallback: CacheService.instance.networkOnly,
+//       )
+//         ..register(RegExp(r'^/auth/'), CacheService.instance.networkOnly)
+//         ..register(
+//           RegExp(r'^/home$'),
+//           CacheService.instance.cacheFirst(maxStale: const Duration(hours: 6)),
+//         ),
+//
+//       // Resolved lazily — fires only on a failed refresh, by which point
+//       // AuthBloc is registered, so registration order does not matter.
+//       onForceLogout: () {
+//         if (!getIt.isRegistered<AuthBloc>()) return;
+//         final bloc = getIt<AuthBloc>();
+//         if (!bloc.isClosed) bloc.add(const LogoutEvent());
+//       },
+//       onTelemetry: (event) => AppLog.i(event.toString()),
+//     );
+//   });
+//
+//   // ── 5. Main Dio + ApiService ───────────────────────────────────────
 //   getIt.registerSingletonAsync<Dio>(
-//     () async =>
-//         await NetworkHelper(getIt(), getIt(), syncQueue: syncQueue).createDio(),
+//     () async => (await getIt.getAsync<NetworkHelper>()).createDio(),
+//     dependsOn: [NetworkHelper],
 //   );
+//
 //   getIt.registerSingletonWithDependencies<ApiService>(
 //     () => ApiServiceImpl(getIt<Dio>()),
 //     dependsOn: [Dio],
 //   );
-
-//   // SyncManager — starts after Dio is ready
-//   getIt.registerSingletonWithDependencies<SyncServiceManager>(
-//     () => SyncServiceManager(
-//       dio: getIt<Dio>(),
-//       queue: getIt<SyncQueue>(),
-//       networkInfo: getIt<NetworkInfo>(),
-//     ),
-//     dependsOn: [Dio],
+//
+//   // ── 6. Offline sync — its OWN replay Dio, never the main one.
+//   //    createReplayDio() has no duplicate-detection, no cache and no
+//   //    offline-sync interceptor, so replays cannot re-queue themselves.
+//   getIt.registerSingletonAsync<SyncServiceManager>(
+//     () async {
+//       final replayDio =
+//           await (await getIt.getAsync<NetworkHelper>()).createReplayDio();
+//       return SyncServiceManager(
+//         dio: replayDio,
+//         queue: getIt<SyncQueue>(),
+//         networkInfo: getIt<NetworkInfo>(),
+//       );
+//     },
+//     dependsOn: [NetworkHelper],
 //   );
-
-//   await getIt.isReady<Dio>();
-//   await getIt.isReady<ApiService>();
-//   await getIt.isReady<SyncServiceManager>();
-
-//   // Start SyncManager
-//   getIt<SyncServiceManager>().init();
+//
+//   // ── 7. Wait for every async singleton, then start syncing ──────────
+//   await getIt.allReady();
+//   await getIt<SyncServiceManager>().init();
 // }
 
 /// Helper class for creating and configuring Dio instances
