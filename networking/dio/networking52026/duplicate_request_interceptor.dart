@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:idara_tracking_app/core/networking/method_type.dart';
 
@@ -64,7 +65,10 @@ class DuplicateRequestInterceptor extends Interceptor {
   }
 
   @override
-  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
+  void onResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+  ) {
     _removeSignature(response.requestOptions);
     handler.next(response);
   }
@@ -98,8 +102,12 @@ class DuplicateRequestInterceptor extends Interceptor {
     final method = options.method.toUpperCase();
     final uri = options.uri.toString();
     final payload = _serializePayload(options.data);
-    return '$method:$uri:$payload';
+    return '$method:${_digest('$uri:$payload')}';
+    // return '$method:$uri:$payload';
   }
+
+  String _digest(String input) =>
+      sha256.convert(utf8.encode(input)).toString().substring(0, 32);
 
   /// Serialises the request payload into a stable, order-independent string.
   String _serializePayload(dynamic data) {
