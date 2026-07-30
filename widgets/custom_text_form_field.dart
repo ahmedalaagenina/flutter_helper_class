@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:mobile_developer_test/config/theme/theme.dart';
-import 'package:mobile_developer_test/core/extension/extension.dart';
-import 'package:mobile_developer_test/core/widgets/widgets.dart';
+import 'package:idara_tracking_app/core/extension/extension.dart';
+import 'package:idara_tracking_app/core/widgets/widgets.dart';
 
 class CustomTextFormField extends StatefulWidget {
   const CustomTextFormField({
@@ -14,7 +13,7 @@ class CustomTextFormField extends StatefulWidget {
     this.isFilled = false,
     this.hasValidator = true,
     this.isSecured = false,
-    this.validateText = "",
+    this.validateText = '',
     this.onChange,
     this.onEditingComplete,
     this.isLtr = false,
@@ -59,10 +58,12 @@ class CustomTextFormField extends StatefulWidget {
     this.initialValue,
     this.maxLength,
     this.errorMessage,
+    this.validator,
     this.autoCorrect = true,
     this.autoFocus = false,
     this.enableSuggestions = true,
     this.textInputAction,
+    this.autofillHints,
     this.cursorColor,
     this.dismissOutSideTap = true,
   });
@@ -119,10 +120,27 @@ class CustomTextFormField extends StatefulWidget {
   final String? initialValue;
   final int? maxLength;
   final String? errorMessage;
+
+  /// Replaces the built-in validation chain entirely.
+  ///
+  /// The default chain infers rules from [validateText] and [isSecured] —
+  /// notably, [isSecured] enforces password *strength*. That is right when
+  /// choosing a password and wrong when entering an existing one: a login
+  /// screen must accept whatever the account already has, or a user whose
+  /// password predates the rule can never sign in.
+  ///
+  /// Pass a validator here to opt out of the chain.
+  final FormFieldValidator<String>? validator;
   final bool autoCorrect;
   final bool autoFocus;
   final bool enableSuggestions;
   final TextInputAction? textInputAction;
+
+  /// Lets the OS password manager recognise the field.
+  ///
+  /// Without this a login form cannot be autofilled or saved, which pushes
+  /// users towards weaker, memorable passwords.
+  final Iterable<String>? autofillHints;
   final Color? cursorColor;
   final bool dismissOutSideTap;
 
@@ -160,7 +178,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
             offset: Offset.zero,
             color: !widget.haveShadow
                 ? Colors.transparent
-                : (widget.shadowColor ?? AppColors.shadowColor),
+                : (widget.shadowColor ?? Theme.of(context).colorScheme.shadow),
             child: GestureDetector(
               onTap: widget.onTap,
               child: SizedBox(
@@ -187,7 +205,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                       ),
                       if (widget.validateText.toLowerCase().contains('phone') ||
                           widget.keyboardType == TextInputType.number)
-                        FilteringTextInputFormatter.digitsOnly
+                        FilteringTextInputFormatter.digitsOnly,
                     ],
                     textDirection: widget.isLtr ? TextDirection.ltr : null,
                     keyboardType: widget.keyboardType,
@@ -197,6 +215,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                     autofocus: widget.autoFocus,
                     enableSuggestions: widget.enableSuggestions,
                     textInputAction: widget.textInputAction,
+                    autofillHints: widget.autofillHints,
                     cursorColor: widget.cursorColor,
                     decoration: InputDecoration(
                       isDense: true,
@@ -207,31 +226,37 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                           : null,
                       hintText: widget.hintText,
                       suffixIconConstraints: widget.suffixIconConstraints,
-                      hintStyle:
-                          Theme.of(context).textTheme.titleMedium!.copyWith(
-                                color: widget.hintColor ?? AppColors.primary,
-                                fontSize: widget.hintFontSize,
-                                fontWeight: widget.hintFontWeight,
-                              ),
+                      hintStyle: Theme.of(context).textTheme.titleMedium!
+                          .copyWith(
+                            color:
+                                widget.hintColor ??
+                                Theme.of(context).colorScheme.primary,
+                            fontSize: widget.hintFontSize,
+                            fontWeight: widget.hintFontWeight,
+                          ),
                       labelText: widget.labelText,
                       alignLabelWithHint: true,
                       labelStyle: TextStyle(
-                        color: widget.labelColor ?? AppColors.primary,
+                        color:
+                            widget.labelColor ??
+                            Theme.of(context).colorScheme.primary,
                         fontSize: widget.labelTextSize,
                         fontWeight: widget.labelTextWeight,
                       ),
                       prefixText:
                           widget.validateText.toLowerCase().contains('phone') &&
-                                  widget.haveCountryKey
-                              ? '+962 '
-                              : null,
+                              widget.haveCountryKey
+                          ? '+962 '
+                          : null,
                       prefixStyle: Theme.of(context).textTheme.labelMedium,
                       suffixStyle: Theme.of(context).textTheme.labelMedium,
-                      fillColor: widget.backgroundColor ??
+                      fillColor:
+                          widget.backgroundColor ??
                           (!widget.isEnabled ? Colors.grey : Colors.white70),
                       enabled: widget.isEnabled,
                       filled: widget.backgroundColor != null || widget.isFilled,
-                      suffixIcon: widget.suffix ??
+                      suffixIcon:
+                          widget.suffix ??
                           (widget.isSecured
                               ? IconButton(
                                   icon: Icon(
@@ -239,24 +264,26 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                                         ? Icons.visibility
                                         : Icons.visibility_off,
                                     color: !_isObscure
-                                        ? AppColors.primary
+                                        ? Theme.of(context).colorScheme.primary
                                         : Colors.grey,
                                   ),
                                   onPressed: () =>
                                       setState(() => _isObscure = !_isObscure),
                                 )
                               : widget.suffixIcon != null
-                                  ? GestureDetector(
-                                      onTap: widget.suffixTap,
-                                      child: Icon(
-                                        widget.suffixIcon,
-                                        size: widget.suffixIconSize,
-                                        color: widget.suffixIconColor ??
-                                            AppColors.primary,
-                                      ),
-                                    )
-                                  : null),
-                      prefixIcon: widget.prefixWidget ??
+                              ? GestureDetector(
+                                  onTap: widget.suffixTap,
+                                  child: Icon(
+                                    widget.suffixIcon,
+                                    size: widget.suffixIconSize,
+                                    color:
+                                        widget.suffixIconColor ??
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                )
+                              : null),
+                      prefixIcon:
+                          widget.prefixWidget ??
                           (widget.prefixIcon != null
                               ? Padding(
                                   padding: const EdgeInsets.all(8.0),
@@ -273,34 +300,41 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                           ? InputBorder.none
                           : OutlineInputBorder(
                               borderRadius: BorderRadius.all(
-                                  Radius.circular(widget.radius)),
+                                Radius.circular(widget.radius),
+                              ),
                             ),
                       focusedBorder: !widget.haveBorder
                           ? InputBorder.none
                           : OutlineInputBorder(
                               borderRadius: BorderRadius.all(
-                                  Radius.circular(widget.radius)),
-                              borderSide: BorderSide(color: AppColors.primary),
+                                Radius.circular(widget.radius),
+                              ),
+                              borderSide: BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                             ),
                       enabledBorder: !widget.haveBorder
                           ? InputBorder.none
                           : OutlineInputBorder(
                               borderRadius: BorderRadius.all(
-                                  Radius.circular(widget.radius)),
+                                Radius.circular(widget.radius),
+                              ),
                               borderSide: BorderSide(color: widget.borderColor),
                             ),
                       disabledBorder: !widget.haveBorder
                           ? InputBorder.none
                           : OutlineInputBorder(
                               borderRadius: BorderRadius.all(
-                                  Radius.circular(widget.radius)),
+                                Radius.circular(widget.radius),
+                              ),
                               borderSide: BorderSide(color: widget.borderColor),
                             ),
                       errorBorder: !widget.haveBorder
                           ? InputBorder.none
                           : OutlineInputBorder(
                               borderRadius: BorderRadius.all(
-                                  Radius.circular(widget.radius)),
+                                Radius.circular(widget.radius),
+                              ),
                               borderSide: const BorderSide(color: Colors.red),
                             ),
                       contentPadding: widget.contentPadding,
@@ -313,37 +347,47 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                     style: TextStyle(
                       fontSize: widget.textSize,
                       fontWeight: widget.textFontWeight,
-                      color: widget.textColor ?? AppColors.primary,
+                      color:
+                          widget.textColor ??
+                          Theme.of(context).colorScheme.primary,
                     ),
                     onFieldSubmitted: widget.onFieldSubmitted,
-                    validator: (value) {
-                      if (value!.isEmpty && widget.hasValidator) {
-                        return widget.errorMessage ?? "Required Field";
-                      }
-                      if (widget.validateText.toLowerCase().contains('phone') &&
-                          value.length != 9) {
-                        return widget.errorMessage ??
-                            "Please Enter Valid Number";
-                      }
-                      if ((widget.validateText
-                                  .toLowerCase()
-                                  .contains('password') ||
-                              widget.isSecured) &&
-                          (value.isPasswordEasy())) {
-                        return widget.errorMessage ??
-                            "Password not valid at least 8 characters, 1 letter and 1 number and no space";
-                      }
-                      if (widget.validateText.toLowerCase().contains("name") &&
-                          (!value.isFullNameEn())) {
-                        return widget.errorMessage ?? "Valid User Name";
-                      }
-                      if (value.isNotEmpty &&
-                          widget.validateText.toLowerCase().contains("email") &&
-                          !value.isEmail()) {
-                        return widget.errorMessage ?? "Valid Not Email";
-                      }
-                      return null;
-                    },
+                    validator:
+                        widget.validator ??
+                        (value) {
+                          if (value!.isEmpty && widget.hasValidator) {
+                            return widget.errorMessage ?? 'Required Field';
+                          }
+                          if (widget.validateText.toLowerCase().contains(
+                                'phone',
+                              ) &&
+                              value.length != 9) {
+                            return widget.errorMessage ??
+                                'Please Enter Valid Number';
+                          }
+                          if ((widget.validateText.toLowerCase().contains(
+                                    'password',
+                                  ) ||
+                                  widget.isSecured) &&
+                              (value.isPasswordEasy())) {
+                            return widget.errorMessage ??
+                                'Password not valid at least 8 characters, 1 letter and 1 number and no space';
+                          }
+                          if (widget.validateText.toLowerCase().contains(
+                                'name',
+                              ) &&
+                              (!value.isFullNameEn())) {
+                            return widget.errorMessage ?? 'Valid User Name';
+                          }
+                          if (value.isNotEmpty &&
+                              widget.validateText.toLowerCase().contains(
+                                'email',
+                              ) &&
+                              !value.isEmail()) {
+                            return widget.errorMessage ?? 'Valid Not Email';
+                          }
+                          return null;
+                        },
                   ),
                 ),
               ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -553,7 +555,9 @@ class _AppButtonState extends State<AppButton> with TickerProviderStateMixin {
     if (widget._type == _ButtonType.selection) {
       _handleSelectionTap();
     } else {
-      _handleStandardTap();
+      // Fire-and-forget: _handleStandardTap awaits onPressedAsync itself and
+      // owns the loading flag, so the tap handler must not block on it.
+      unawaited(_handleStandardTap());
     }
   }
 
@@ -611,7 +615,9 @@ class _AppButtonState extends State<AppButton> with TickerProviderStateMixin {
         (widget.haveShadow && _isEffectivelyEnabled
             ? [
                 BoxShadow(
-                  color: (widget.shadowColor ?? Colors.black).withOpacity(0.15),
+                  color: (widget.shadowColor ?? Colors.black).withValues(
+                    alpha: 0.15,
+                  ),
                   blurRadius: widget.shadowBlurRadius,
                   offset: widget.shadowOffset,
                 ),
@@ -814,7 +820,8 @@ class _AppButtonState extends State<AppButton> with TickerProviderStateMixin {
         height: widget.circularIconRadius ?? widget.iconSize + 12,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: widget.circularIconColor ?? Colors.white.withOpacity(0.2),
+          color:
+              widget.circularIconColor ?? Colors.white.withValues(alpha: 0.2),
         ),
         alignment: Alignment.center,
         child: iconView,
