@@ -167,6 +167,72 @@ class AppTypography extends BaseTypography {
          fontSizeScaleFactor: fontSizeScaleFactor,
        );
 
+  static const List<FontFeature> tabularFigures = [
+    FontFeature.tabularFigures(),
+  ];
+
+  /// Splits line leading evenly above and below the glyphs.
+  ///
+  /// **Required for this font.** DIN Next Arabic reserves room above the
+  /// baseline for Arabic diacritics, giving it very lopsided metrics:
+  ///
+  /// ```
+  /// ascent 1.200 em   descent 0.270 em   →  ascent is 81.6% of the box
+  /// (a Latin-only face is nearer 50–60%)
+  /// ```
+  ///
+  /// Flutter's default, [TextLeadingDistribution.proportional], hands out the
+  /// extra line height in that same 82/18 ratio. Latin text carries nothing in
+  /// the diacritic zone, so almost all the slack lands *above* the letters and
+  /// they sit low in their box — visibly off-centre inside a button, while an
+  /// [Icon] beside them looks fine because its glyph box is symmetric.
+  ///
+  /// `even` ignores the font's ratio and halves the leading, which centres the
+  /// glyphs. Applied on the base style so every widget inherits it.
+  /// use in materialApp
+  ///             builder: (context, child) {
+  //   // Backstop for the same problem AppTypography solves: DIN Next
+  //   // Arabic reserves 82% of its line box above the baseline for
+  //   // diacritics, so proportional leading pushes Latin text low.
+  //   // The typography covers anything styled from our theme; this
+  //   // catches text that builds its own TextStyle.
+  //   return DefaultTextHeightBehavior(
+  //     textHeightBehavior: const TextHeightBehavior(
+  //       leadingDistribution: AppTypography.leadingDistribution,
+  //     ),
+  //     child: child ?? const SizedBox.shrink(),
+  //   );
+  // },
+  static const TextLeadingDistribution leadingDistribution =
+      TextLeadingDistribution.even;
+
+  /// How far glyphs sit below the optical centre of their line box, as a
+  /// fraction of the font size.
+  ///
+  /// [leadingDistribution] fixes how *leading* is shared out, but not the
+  /// asymmetry of the font's own content box, which is what actually
+  /// mispositions the glyphs:
+  ///
+  /// ```
+  /// hhea  ascent 1.200 em   descent 0.270 em
+  /// box centre = (ascent − descent) / 2 = 0.465 em above the baseline
+  /// ```
+  ///
+  /// Centring that box puts the baseline 0.465 em below the container's
+  /// middle. But Latin glyphs occupy roughly cap-height 0.70 em down to
+  /// descender −0.20 em, so their optical centre is only ~0.25 em above the
+  /// baseline — which is exactly what the designer declared in OS/2
+  /// (`typoAscender 0.75`, `typoDescender −0.25` → centre 0.25 em).
+  ///
+  /// The gap, `0.465 − 0.25`, is how far the text drops. Arabic UI text is in
+  /// the same position: the 1.2 em ascent is reserved for stacked diacritics
+  /// that ordinary labels do not carry, so the correction suits both scripts
+  /// and is applied unconditionally.
+  ///
+  /// Only matters where text is centred in a fixed-height box — buttons,
+  /// chips, badges. In flowing text the box sits wherever it lands.
+  static const double opticalCentreOffsetEm = 0.215;
+
   // Create base style with the specified font family
   @override
   TextStyle createBaseStyle() {
@@ -175,7 +241,8 @@ class AppTypography extends BaseTypography {
       fontFamilyFallback: fontFamilyFallback,
       letterSpacing: 0.15,
       fontWeight: FontWeight.normal,
-      height: 1.25, // Improved line height
+      height: 1.25,
+      leadingDistribution: leadingDistribution,
     );
   }
 

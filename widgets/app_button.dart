@@ -765,15 +765,32 @@ class _AppButtonState extends State<AppButton> with TickerProviderStateMixin {
         ? (widget.textColor ?? defaultTextColor)
         : (widget.disabledTextColor ?? Colors.white70);
 
-    return Text(
-      widget.title ?? '',
-      textAlign: TextAlign.center,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: theme.textTheme.titleMedium?.copyWith(
-        color: effectiveTextColor,
-        fontSize: widget.fontSize,
-        fontWeight: widget.fontWeight,
+    final style = theme.textTheme.titleMedium?.copyWith(
+      color: effectiveTextColor,
+      fontSize: widget.fontSize,
+      fontWeight: widget.fontWeight,
+    );
+
+    // Lift the label onto the button's optical centre.
+    //
+    // The app font reserves 1.2 em above the baseline for Arabic diacritics,
+    // so the centre of its line box sits 0.465 em up while the glyphs' own
+    // centre is nearer 0.25 em — leaving a label visibly low inside a
+    // fixed-height button, while the icon beside it looks right because an
+    // icon's glyph box is symmetric. See AppTypography.opticalCentreOffsetEm.
+    //
+    // Translate rather than pad: this must not change the button's layout,
+    // only where the glyphs are painted.
+    final fontSize = style?.fontSize ?? 16;
+
+    return Transform.translate(
+      offset: Offset(0, -fontSize * AppTypography.opticalCentreOffsetEm),
+      child: Text(
+        widget.title ?? '',
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
       ),
     );
   }
