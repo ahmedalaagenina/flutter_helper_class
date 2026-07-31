@@ -12,35 +12,35 @@ class DarkColors extends BaseColors {
   /// Main primary color in dark mode.
   /// Usually lighter than the light-mode primary so it is more visible on dark UI.
   @override
-  Color get primary => const Color(0xFF4DB8FF);
+  Color get primary => BrandPalette.red500;
 
   /// Darker original brand tone used for containers and deeper emphasis.
   @override
-  Color get primaryDark => const Color(0xFF007EC3);
+  Color get primaryDark => BrandPalette.red700;
 
   /// Lighter variation of the dark theme primary.
   @override
-  Color get primaryLight => const Color(0xFF80CCFF);
+  Color get primaryLight => BrandPalette.red300;
 
   /// Text/icons shown on primary surfaces.
   @override
-  Color get onPrimary => Colors.black;
+  Color get onPrimary => BrandPalette.inkOnRed;
 
   /// Secondary accent color in dark mode.
   @override
-  Color get secondary => const Color(0xFF4DD6D6);
+  Color get secondary => BrandPalette.n200;
 
   /// Darker variation of the secondary color.
   @override
-  Color get secondaryDark => const Color(0xFF00A8A8);
+  Color get secondaryDark => BrandPalette.n400;
 
   /// Lighter variation of the secondary color.
   @override
-  Color get secondaryLight => const Color(0xFF8CEAEA);
+  Color get secondaryLight => BrandPalette.n100;
 
   /// Text/icons shown on top of secondary surfaces.
   @override
-  Color get onSecondary => Colors.black;
+  Color get onSecondary => BrandPalette.inkOnLight;
 
   // ---------------------------------------------------------------------------
   // Surface hierarchy
@@ -48,23 +48,23 @@ class DarkColors extends BaseColors {
 
   /// Main app background in dark mode.
   @override
-  Color get surface => const Color(0xFF0B0F14);
+  Color get surface => BrandPalette.n900;
 
   /// Main text color on dark surfaces.
   @override
-  Color get onSurface => const Color(0xFFF3F4F6);
+  Color get onSurface => BrandPalette.inkOnDark;
 
   /// Standard container surface in dark mode.
   @override
-  Color get surfaceContainer => const Color(0xFF121821);
+  Color get surfaceContainer => BrandPalette.n850;
 
   /// More prominent container surface in dark mode.
   @override
-  Color get surfaceVariant => const Color(0xFF1B2430);
+  Color get surfaceVariant => BrandPalette.n800;
 
   /// Secondary text/icon color used on dark surfaces.
   @override
-  Color get onSurfaceVariant => const Color(0xFFB6C2CF);
+  Color get onSurfaceVariant => BrandPalette.n400;
 
   // ---------------------------------------------------------------------------
   // Semantic colors
@@ -72,7 +72,7 @@ class DarkColors extends BaseColors {
 
   /// Error / destructive color in dark mode.
   @override
-  Color get error => const Color(0xFFEF4444);
+  Color get error => const Color(0xFFFF8A80);
 
   /// Success color in dark mode.
   @override
@@ -80,7 +80,7 @@ class DarkColors extends BaseColors {
 
   /// Warning color in dark mode.
   @override
-  Color get warning => const Color(0xFFFBBF24);
+  Color get warning => const Color(0xFFF59E0B);
 
   /// Informational color in dark mode.
   @override
@@ -88,7 +88,7 @@ class DarkColors extends BaseColors {
 
   /// Text/icon color shown on top of the error color.
   @override
-  Color get onError => Colors.black;
+  Color get onError => BrandPalette.inkOnLight;
 
   /// Text/icon color shown on top of the success color.
   @override
@@ -108,27 +108,27 @@ class DarkColors extends BaseColors {
 
   /// Strong border color in dark mode.
   @override
-  Color get outline => const Color(0xFF2A3542);
+  Color get outline => BrandPalette.outlineDark;
 
   /// Softer border/divider color in dark mode.
   @override
-  Color get outlineVariant => const Color(0xFF7B8794);
+  Color get outlineVariant => BrandPalette.n600;
 
   /// Brand-aware primary used on inverse surfaces.
   @override
-  Color get inversePrimary => const Color(0xFF007EC3);
+  Color get inversePrimary => BrandPalette.red700;
 
   /// Inverse surface used when a light surface is needed inside dark UI.
   @override
-  Color get inverseSurface => const Color(0xFFF3F4F6);
+  Color get inverseSurface => BrandPalette.n50;
 
   /// Text/icon color displayed on inverseSurface.
   @override
-  Color get onInverseSurface => const Color(0xFF111827);
+  Color get onInverseSurface => BrandPalette.inkOnLight;
 
   /// Overlay color used behind dialogs, sheets, and drawers in dark mode.
   @override
-  Color get scrim => Colors.black.withValues(alpha: 0.50);
+  Color get scrim => Colors.black.withValues(alpha: 0.60);
   @override
   ColorScheme toColorScheme() {
     // -------------------------------------------------------------------------

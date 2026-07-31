@@ -12,19 +12,19 @@ class LightColors extends BaseColors {
   /// Main light theme brand color.
   /// Change this first when the app brand changes.
   @override
-  Color get primary => const Color(0xFF007EC3);
+  Color get primary => BrandPalette.red700;
 
   /// Darker manual variation of the brand color.
   @override
-  Color get primaryDark => primary.darker(0.18);
+  Color get primaryDark => BrandPalette.red800;
 
   /// Lighter manual variation of the brand color.
   @override
-  Color get primaryLight => primary.lighter(0.22);
+  Color get primaryLight => BrandPalette.red100;
 
   /// Text/icons shown on primary surfaces.
   @override
-  Color get onPrimary => Colors.white;
+  Color get onPrimary => BrandPalette.n0;
 
   /// Secondary accent color.
   ///
@@ -35,19 +35,19 @@ class LightColors extends BaseColors {
   /// - you can ignore overriding it in toColorScheme()
   /// - and let fromSeed generate it automatically.
   @override
-  Color get secondary => const Color(0xFF00A8A8);
+  Color get secondary => BrandPalette.n800;
 
   /// Darker variation of secondary.
   @override
-  Color get secondaryDark => secondary.darker(0.16);
+  Color get secondaryDark => BrandPalette.n900;
 
   /// Lighter variation of secondary.
   @override
-  Color get secondaryLight => secondary.lighter(0.18);
+  Color get secondaryLight => BrandPalette.n200;
 
   /// Text/icons shown on secondary surfaces.
   @override
-  Color get onSecondary => Colors.white;
+  Color get onSecondary => BrandPalette.n0;
 
   // ---------------------------------------------------------------------------
   // Surface hierarchy
@@ -55,23 +55,23 @@ class LightColors extends BaseColors {
 
   /// Main app background in light mode.
   @override
-  Color get surface => const Color(0xFFFFFFFF);
+  Color get surface => BrandPalette.n0;
 
   /// Main text color on light surfaces.
   @override
-  Color get onSurface => const Color(0xFF111827);
+  Color get onSurface => BrandPalette.inkOnLight;
 
   /// Standard container color for cards and inputs.
   @override
-  Color get surfaceContainer => const Color(0xFFF9FAFB);
+  Color get surfaceContainer => BrandPalette.n50;
 
   /// Stronger surface layer for more prominent containers.
   @override
-  Color get surfaceVariant => const Color(0xFFF3F4F6);
+  Color get surfaceVariant => BrandPalette.n100;
 
   /// Secondary text/icon color used on surface layers.
   @override
-  Color get onSurfaceVariant => const Color(0xFF4B5563);
+  Color get onSurfaceVariant => BrandPalette.n600;
 
   // ---------------------------------------------------------------------------
   // Semantic colors
@@ -79,7 +79,7 @@ class LightColors extends BaseColors {
 
   /// Error / destructive color.
   @override
-  Color get error => const Color(0xFFDC2626);
+  Color get error => const Color(0xFF9F1239);
 
   /// Success / positive state color.
   @override
@@ -87,7 +87,7 @@ class LightColors extends BaseColors {
 
   /// Warning / caution color.
   @override
-  Color get warning => const Color(0xFFF59E0B);
+  Color get warning => const Color(0xFFD97706);
 
   /// Informational state color.
   @override
@@ -115,23 +115,23 @@ class LightColors extends BaseColors {
 
   /// Strong border color.
   @override
-  Color get outline => const Color(0xFFE5E7EB);
+  Color get outline => BrandPalette.n200;
 
   /// Softer border/divider color.
   @override
-  Color get outlineVariant => const Color(0xFF9CA3AF);
+  Color get outlineVariant => BrandPalette.n300;
 
   /// Primary-like color displayed on inverse surfaces.
   @override
-  Color get inversePrimary => primaryLight;
+  Color get inversePrimary => BrandPalette.red400;
 
   /// Strong inverse surface, useful for snackbars or dark overlays in light mode.
   @override
-  Color get inverseSurface => const Color(0xFF111827);
+  Color get inverseSurface => BrandPalette.n900;
 
   /// Text/icon color shown on inverse surfaces.
   @override
-  Color get onInverseSurface => Colors.white;
+  Color get onInverseSurface => BrandPalette.inkOnDark;
 
   /// Overlay color used behind dialogs, sheets, and drawers.
   @override

@@ -73,15 +73,15 @@ class DeviceStatusColors extends ThemeExtension<DeviceStatusColors> {
     moving: Color(0xFF34D77F),
     idling: Color(0xFF5B9BFF),
     stopped: Color(0xFFFBBF24),
-    offline: Color(0xFFF87171),
+    offline: Color(0xFF94A3B8), // slate — see the note above
     ignitionOn: Color(0xFF34D77F),
-    ignitionOff: Color(0xFFF87171),
-    tail: Color(0xB322C3E6), // cyan400 @ 70%
+    ignitionOff: Color(0xFF94A3B8),
+    tail: Color(0xB3E50127), // red500 @ 70%
     geofenceFill: Color(0x2E14D3C4), // teal500 @ 18%
     geofenceStroke: BrandPalette.teal400,
-    clusterFill: BrandPalette.cyan400,
-    clusterLabel: BrandPalette.inkOnCyan,
-    markerChipBackground: Color(0xD90B1017), // n900 @ 85%
+    clusterFill: BrandPalette.red500,
+    clusterLabel: BrandPalette.inkOnRed,
+    markerChipBackground: Color(0xD90E0E12), // n900 @ 85%
     markerChipLabel: BrandPalette.inkOnDark,
   );
 
@@ -89,14 +89,14 @@ class DeviceStatusColors extends ThemeExtension<DeviceStatusColors> {
     moving: Color(0xFF15803D),
     idling: Color(0xFF1D4ED8),
     stopped: Color(0xFFB45309),
-    offline: Color(0xFFB91C1C),
+    offline: Color(0xFF64748B), // slate — see the note above
     ignitionOn: Color(0xFF15803D),
-    ignitionOff: Color(0xFFB91C1C),
-    tail: Color(0xB3007A96), // cyan700 @ 70%
+    ignitionOff: Color(0xFF64748B),
+    tail: Color(0xB3AF011E), // red700 @ 70%
     geofenceFill: Color(0x260FB3A6), // teal600 @ 15%
     geofenceStroke: BrandPalette.teal700,
-    clusterFill: BrandPalette.cyan700,
-    clusterLabel: BrandPalette.n0,
+    clusterFill: BrandPalette.red700,
+    clusterLabel: BrandPalette.inkOnRed,
     markerChipBackground: Color(0xEBFFFFFF), // white @ 92%
     markerChipLabel: BrandPalette.inkOnLight,
   );

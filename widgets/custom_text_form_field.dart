@@ -48,6 +48,7 @@ class CustomTextFormField extends StatefulWidget {
     this.shadowColor,
     this.haveShadow = false,
     this.isCollapsed = false,
+    this.isDense = true,
     this.hintFontSize,
     this.hintFontWeight,
     this.labelTextSize,
@@ -88,6 +89,15 @@ class CustomTextFormField extends StatefulWidget {
   final bool isLtr;
   final bool isSecured;
   final bool isCollapsed;
+
+  /// Compact vertical density.
+  ///
+  /// Leave true for tight forms. Set **false** with an explicit
+  /// [contentPadding] to get a tall input: the decorated box — the visible
+  /// pill the user taps and types in — sizes to its content, so a dense box
+  /// stays small no matter how large [height] is, and merely ends up centred
+  /// inside it.
+  final bool isDense;
   final TextInputType? keyboardType;
   final ValueChanged<String?>? onChange;
   final ValueChanged<String?>? onFieldSubmitted;
@@ -218,7 +228,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                     autofillHints: widget.autofillHints,
                     cursorColor: widget.cursorColor,
                     decoration: InputDecoration(
-                      isDense: true,
+                      isDense: widget.isDense,
                       errorMaxLines: 3,
                       isCollapsed: widget.isCollapsed,
                       counterText: widget.maxLength != null
@@ -394,7 +404,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
             ),
           ),
         ],
-      ),
+      ),``
     );
   }
 }
