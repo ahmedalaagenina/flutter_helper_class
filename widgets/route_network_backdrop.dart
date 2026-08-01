@@ -5,23 +5,23 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-/// A faint road network with a vehicle tracing one of the routes.
+/// A faint road network with vehicles tracing some of the routes.
 ///
 /// ## Why a route network rather than particles
 ///
 /// A connected-particle field reads as "generic tech". This says what the
-/// product actually does: roads, stops along them, and something moving. The
-/// tracer is the whole point — a static map is a picture, a moving dot is
+/// product actually does: roads, stops along them, and things moving. The
+/// tracers are the whole point — a static map is a picture, a moving dot is
 /// tracking.
 ///
 /// ## Restraint is the design
 ///
-/// This sits behind a login form, so legibility wins over decoration: the
-/// roads are drawn at a fraction of the surface contrast and the tracer takes
-/// several seconds per lap. It should register as texture, not motion you have
-/// to look away from.
+/// This sits behind a login form, so legibility wins over decoration: roads
+/// are drawn at a fraction of the surface contrast and a lap takes several
+/// seconds. It should register as texture, not motion you have to look away
+/// from.
 ///
-/// Performance, following the same rules as `ParticleField`:
+/// Performance:
 /// - geometry is built once per size, not per frame
 /// - a single [CustomPaint] behind a [RepaintBoundary]
 /// - the ticker stops when [active] is false or the platform asks for reduced
@@ -33,12 +33,13 @@ class RouteNetworkBackdrop extends StatefulWidget {
     this.accentColor,
     this.active = true,
     this.opacity = 1,
+    this.tracerCount = 3,
   });
 
   /// Road lines. Use a low-contrast neutral — this must sit behind content.
   final Color color;
 
-  /// Stops and the moving tracer. Defaults to [color].
+  /// Stops and the moving tracers. Defaults to [color].
   final Color? accentColor;
 
   /// Set false when the backdrop is off-screen to stop the ticker.
@@ -47,26 +48,32 @@ class RouteNetworkBackdrop extends StatefulWidget {
   /// Overall strength, on top of the already-low per-element alphas.
   final double opacity;
 
+  /// How many vehicles travel the network.
+  ///
+  /// Clamped to the number of arterial routes available. Each gets its own
+  /// route, starting phase and speed, so they never move in lockstep — which
+  /// would read as an animation rather than as traffic.
+  final int tracerCount;
+
   @override
   State<RouteNetworkBackdrop> createState() => _RouteNetworkBackdropState();
 }
 
 class _RouteNetworkBackdropState extends State<RouteNetworkBackdrop>
     with SingleTickerProviderStateMixin {
-  /// One full traverse of the traced route.
+  /// One full traverse at speed 1.0.
   static const Duration _lapDuration = Duration(seconds: 9);
 
   late final Ticker _ticker = createTicker(_onTick);
 
-  /// 0→1 progress of the tracer along its route.
-  final ValueNotifier<double> _progress = ValueNotifier<double>(0);
+  /// 0→1 master clock. Each tracer derives its own position from this.
+  final ValueNotifier<double> _clock = ValueNotifier<double>(0);
 
-  Duration _elapsed = Duration.zero;
-
-  /// Built once per size — recomputing curves every frame would dominate the
-  /// cost of this widget.
+  /// Built once per size — recomputing curves and path metrics every frame
+  /// would dominate the cost of this widget.
   _RouteGeometry? _geometry;
   Size _lastSize = Size.zero;
+  int _lastTracerCount = -1;
 
   @override
   void didChangeDependencies() {
@@ -94,18 +101,15 @@ class _RouteNetworkBackdropState extends State<RouteNetworkBackdrop>
   }
 
   void _onTick(Duration elapsed) {
-    _elapsed = elapsed;
-    final t =
-        (_elapsed.inMilliseconds % _lapDuration.inMilliseconds) /
-        _lapDuration.inMilliseconds;
-    // ValueNotifier rather than setState: only the painter needs to rebuild.
-    _progress.value = t;
+    final lapMs = _lapDuration.inMilliseconds;
+    // ValueNotifier rather than setState: only the painter needs to repaint.
+    _clock.value = (elapsed.inMilliseconds % lapMs) / lapMs;
   }
 
   @override
   void dispose() {
     _ticker.dispose();
-    _progress.dispose();
+    _clock.dispose();
     super.dispose();
   }
 
@@ -115,16 +119,20 @@ class _RouteNetworkBackdropState extends State<RouteNetworkBackdrop>
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = Size(constraints.maxWidth, constraints.maxHeight);
-          if (size != _lastSize || _geometry == null) {
+
+          if (size != _lastSize ||
+              widget.tracerCount != _lastTracerCount ||
+              _geometry == null) {
             _lastSize = size;
-            _geometry = _RouteGeometry.build(size);
+            _lastTracerCount = widget.tracerCount;
+            _geometry = _RouteGeometry.build(size, widget.tracerCount);
           }
 
           return CustomPaint(
             size: size,
             painter: _RouteNetworkPainter(
               geometry: _geometry!,
-              progress: _progress,
+              clock: _clock,
               color: widget.color,
               accentColor: widget.accentColor ?? widget.color,
               opacity: widget.opacity,
@@ -136,28 +144,66 @@ class _RouteNetworkBackdropState extends State<RouteNetworkBackdrop>
   }
 }
 
-/// The road paths and stop positions for one canvas size.
-class _RouteGeometry {
-  _RouteGeometry({
-    required this.roads,
-    required this.tracedRoute,
-    required this.tracedMetric,
+/// A route with a vehicle on it.
+class _TracedRoute {
+  const _TracedRoute({
+    required this.metric,
+    required this.phase,
+    required this.speed,
     required this.stops,
   });
 
-  final List<Path> roads;
-  final Path tracedRoute;
-  final PathMetric tracedMetric;
+  final PathMetric metric;
+
+  /// Starting offset around the lap, so vehicles are spread out rather than
+  /// all departing together.
+  final double phase;
+
+  /// Lap-rate multiplier. Slight variation stops them staying in formation.
+  final double speed;
+
   final List<Offset> stops;
+
+  /// Where this vehicle is, 0→1 along its route, for a given master clock.
+  double headAt(double clock) => (clock * speed + phase) % 1.0;
+}
+
+/// The road paths and traced routes for one canvas size.
+class _RouteGeometry {
+  _RouteGeometry({
+    required this.roads,
+    required this.tracedPaths,
+    required this.traced,
+  });
+
+  final List<Path> roads;
+
+  /// Drawn slightly stronger than the rest, so the eye follows them.
+  final List<Path> tracedPaths;
+
+  final List<_TracedRoute> traced;
+
+  /// How many of the generated roads are long arterials (the rest are cross
+  /// streets, which are too short to carry a vehicle convincingly).
+  static const int _arterialCount = 5;
 
   /// Seeded so the layout is identical on every launch — a login screen that
   /// reshuffles its background each time reads as noise, not as a place.
-  static _RouteGeometry build(Size size) {
-    final random = math.Random(11);
-    final roads = <Path>[];
+  static _RouteGeometry build(Size size, int tracerCount) {
+    if (size.isEmpty) {
+      return _RouteGeometry(
+        roads: const [],
+        tracedPaths: const [],
+        traced: const [],
+      );
+    }
+    // change the number make forms changed
+    final random = math.Random(9);
+    final arterials = <Path>[];
+    final crossStreets = <Path>[];
 
     // Long arterials sweeping across the canvas at shallow angles.
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < _arterialCount; i++) {
       final startY = size.height * (0.08 + i * 0.2);
       final path = Path()..moveTo(-size.width * 0.1, startY);
 
@@ -172,10 +218,10 @@ class _RouteGeometry {
         x = nextX;
         y = nextY;
       }
-      roads.add(path);
+      arterials.add(path);
     }
 
-    // Cross streets, to read as a network rather than parallel lines.
+    // Cross streets, so it reads as a network rather than parallel lines.
     for (var i = 0; i < 4; i++) {
       final startX = size.width * (0.15 + i * 0.24);
       final path = Path()..moveTo(startX, -size.height * 0.05);
@@ -188,35 +234,47 @@ class _RouteGeometry {
         x = nextX;
         y = nextY;
       }
-      roads.add(path);
+      crossStreets.add(path);
     }
 
-    // The tracer follows a middle arterial, so it stays in view rather than
-    // running along an edge.
-    final traced = roads[2];
-    final metrics = traced.computeMetrics().toList();
-    final tracedMetric = metrics.isNotEmpty
-        ? metrics.first
-        : (Path()
-                ..moveTo(0, size.height / 2)
-                ..lineTo(size.width, size.height / 2))
-              .computeMetrics()
-              .first;
+    // Spread the vehicles across the arterials instead of taking the first N,
+    // so they are not all clustered at the top of the screen.
+    final count = tracerCount.clamp(0, arterials.length);
+    final traced = <_TracedRoute>[];
+    final tracedPaths = <Path>[];
 
-    // A few stops along the traced route — destinations on the journey.
-    final stops = <Offset>[];
-    for (final fraction in const [0.18, 0.46, 0.78]) {
-      final tangent = tracedMetric.getTangentForOffset(
-        tracedMetric.length * fraction,
+    for (var i = 0; i < count; i++) {
+      final index = count == 1
+          ? arterials.length ~/ 2
+          : (i * (arterials.length - 1) / (count - 1)).round();
+
+      final path = arterials[index];
+      final metrics = path.computeMetrics().toList();
+      if (metrics.isEmpty) continue;
+      final metric = metrics.first;
+
+      // A few stops along the route — destinations on the journey.
+      final stops = <Offset>[];
+      for (final fraction in const [0.22, 0.55, 0.84]) {
+        final tangent = metric.getTangentForOffset(metric.length * fraction);
+        if (tangent != null) stops.add(tangent.position);
+      }
+
+      traced.add(
+        _TracedRoute(
+          metric: metric,
+          phase: i / count,
+          speed: 0.82 + i * 0.13,
+          stops: stops,
+        ),
       );
-      if (tangent != null) stops.add(tangent.position);
+      tracedPaths.add(path);
     }
 
     return _RouteGeometry(
-      roads: roads,
-      tracedRoute: traced,
-      tracedMetric: tracedMetric,
-      stops: stops,
+      roads: [...arterials, ...crossStreets],
+      tracedPaths: tracedPaths,
+      traced: traced,
     );
   }
 }
@@ -224,26 +282,26 @@ class _RouteGeometry {
 class _RouteNetworkPainter extends CustomPainter {
   _RouteNetworkPainter({
     required this.geometry,
-    required this.progress,
+    required this.clock,
     required this.color,
     required this.accentColor,
     required this.opacity,
-  }) : super(repaint: progress);
+  }) : super(repaint: clock);
 
   final _RouteGeometry geometry;
-  final ValueListenable<double> progress;
+  final ValueListenable<double> clock;
   final Color color;
   final Color accentColor;
   final double opacity;
 
-  /// Length of the bright trail behind the vehicle, as a fraction of the route.
+  /// Length of the bright trail behind a vehicle, as a fraction of its route.
   static const double _trailFraction = 0.13;
 
   @override
   void paint(Canvas canvas, Size size) {
     _paintRoads(canvas);
     _paintStops(canvas);
-    _paintTracer(canvas);
+    _paintTracers(canvas);
   }
 
   void _paintRoads(Canvas canvas) {
@@ -257,67 +315,57 @@ class _RouteNetworkPainter extends CustomPainter {
       canvas.drawPath(road, paint);
     }
 
-    // The traced route reads slightly stronger, so the eye follows it.
-    canvas.drawPath(
-      geometry.tracedRoute,
-      paint
-        ..color = color.withValues(alpha: 0.26 * opacity)
-        ..strokeWidth = 1.8,
-    );
-  }
-
-  void _paintStops(Canvas canvas) {
-    for (final stop in geometry.stops) {
-      canvas.drawCircle(
-        stop,
-        3,
-        Paint()..color = accentColor.withValues(alpha: 0.30 * opacity),
-      );
-      canvas.drawCircle(
-        stop,
-        6,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1
-          ..color = accentColor.withValues(alpha: 0.18 * opacity),
-      );
+    paint
+      ..color = color.withValues(alpha: 0.26 * opacity)
+      ..strokeWidth = 1.8;
+    for (final path in geometry.tracedPaths) {
+      canvas.drawPath(path, paint);
     }
   }
 
-  void _paintTracer(Canvas canvas) {
-    final metric = geometry.tracedMetric;
-    final total = metric.length;
-    if (total <= 0) return;
+  void _paintStops(Canvas canvas) {
+    final fill = Paint()..color = accentColor.withValues(alpha: 0.30 * opacity);
+    final ring = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = accentColor.withValues(alpha: 0.18 * opacity);
 
-    final head = total * progress.value;
-    final tail = math.max(0.0, head - total * _trailFraction);
+    for (final route in geometry.traced) {
+      for (final stop in route.stops) {
+        canvas.drawCircle(stop, 3, fill);
+        canvas.drawCircle(stop, 6, ring);
+      }
+    }
+  }
 
-    // The travelled trail, brighter than the road beneath it.
-    final trail = metric.extractPath(tail, head);
-    canvas.drawPath(
-      trail,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = 2.4
-        ..color = accentColor.withValues(alpha: 0.55 * opacity),
-    );
+  void _paintTracers(Canvas canvas) {
+    final trailPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 2.4
+      ..color = accentColor.withValues(alpha: 0.55 * opacity);
+    final haloPaint = Paint()
+      ..color = accentColor.withValues(alpha: 0.16 * opacity);
+    final corePaint = Paint()
+      ..color = accentColor.withValues(alpha: 0.95 * opacity);
 
-    final tangent = metric.getTangentForOffset(head);
-    if (tangent == null) return;
+    for (final route in geometry.traced) {
+      final total = route.metric.length;
+      if (total <= 0) continue;
 
-    // The vehicle: a soft halo with a solid core, so it reads as a live
-    // position rather than a dot sitting on a line.
-    canvas.drawCircle(
-      tangent.position,
-      9,
-      Paint()..color = accentColor.withValues(alpha: 0.16 * opacity),
-    );
-    canvas.drawCircle(
-      tangent.position,
-      3.6,
-      Paint()..color = accentColor.withValues(alpha: 0.95 * opacity),
-    );
+      final head = total * route.headAt(clock.value);
+      final tail = math.max(0.0, head - total * _trailFraction);
+
+      canvas.drawPath(route.metric.extractPath(tail, head), trailPaint);
+
+      final tangent = route.metric.getTangentForOffset(head);
+      if (tangent == null) continue;
+
+      // A soft halo with a solid core, so it reads as a live position rather
+      // than a dot sitting on a line.
+      canvas.drawCircle(tangent.position, 9, haloPaint);
+      canvas.drawCircle(tangent.position, 3.6, corePaint);
+    }
   }
 
   @override
