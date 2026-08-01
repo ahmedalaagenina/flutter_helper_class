@@ -17,11 +17,19 @@ class ShorebirdUpdatePrompter {
   const ShorebirdUpdatePrompter({
     required this.navigatorKey,
     required this.strings,
+    this.stringsBuilder,
     this.logger,
   });
 
   final GlobalKey<NavigatorState>? navigatorKey;
+
+  /// Fallback strings, used when [stringsBuilder] is null.
   final ShorebirdUpdateStrings strings;
+
+  /// Resolves strings from the live context, so prompts follow the app's
+  /// current locale. See `ShorebirdUpdateConfig.stringsBuilder`.
+  final ShorebirdUpdateStrings Function(BuildContext context)? stringsBuilder;
+
   final void Function(String message)? logger;
 
   BuildContext? get _context => navigatorKey?.currentContext;
@@ -32,27 +40,38 @@ class ShorebirdUpdatePrompter {
     return ScaffoldMessenger.maybeOf(context);
   }
 
-  /// Banner offering the user a choice to start the download.
-  void askToDownload({required VoidCallback onDownload}) {
-    _showBanner(
-      content: Text(strings.updateAvailable),
-      actions: [
-        TextButton(
-          onPressed: () {
-            hide();
-            onDownload();
-          },
-          child: Text(strings.download),
-        ),
-        TextButton(onPressed: hide, child: Text(strings.later)),
-      ],
-    );
+  /// Strings for the current locale, or `null` when there is no context to
+  /// render into — in which case there is nothing to show anyway.
+  ShorebirdUpdateStrings? get _strings {
+    final context = _context;
+    if (context == null) {
+      _log('No navigator context available; skipping update prompt.');
+      return null;
+    }
+    return stringsBuilder?.call(context) ?? strings;
+  }
+
+  /// Offers the user a choice to start the download.
+  void askToDownload({
+    required ShorebirdPromptStyle style,
+    required VoidCallback onDownload,
+  }) {
+    final text = _strings;
+    if (text == null) return;
+    switch (style) {
+      case ShorebirdPromptStyle.banner:
+        _askToDownloadBanner(text, onDownload);
+      case ShorebirdPromptStyle.dialog:
+        _askToDownloadDialog(text, onDownload);
+    }
   }
 
   /// Indeterminate progress banner shown while the patch downloads.
   void showDownloading() {
+    final text = _strings;
+    if (text == null) return;
     _showBanner(
-      content: Text(strings.downloading),
+      content: Text(text.downloading),
       actions: const [
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
@@ -71,31 +90,88 @@ class ShorebirdUpdatePrompter {
   /// [onRestart] is optional: without it the prompt is purely informational,
   /// because the patch applies on the next cold start either way.
   void showReady({
-    required ShorebirdReadyPromptStyle style,
+    required ShorebirdPromptStyle style,
     VoidCallback? onRestart,
   }) {
+    final text = _strings;
+    if (text == null) return;
     switch (style) {
-      case ShorebirdReadyPromptStyle.banner:
-        _showReadyBanner(onRestart);
-      case ShorebirdReadyPromptStyle.dialog:
-        _showReadyDialog(onRestart);
+      case ShorebirdPromptStyle.banner:
+        _showReadyBanner(text, onRestart);
+      case ShorebirdPromptStyle.dialog:
+        _showReadyDialog(text, onRestart);
     }
   }
 
   void showError(String message) {
+    final text = _strings;
+    if (text == null) return;
     _showBanner(
-      content: Text('${strings.downloadFailed} $message'),
+      content: Text('${text.downloadFailed} $message'),
       actions: [
-        TextButton(onPressed: hide, child: Text(strings.dismiss)),
+        TextButton(onPressed: hide, child: Text(text.dismiss)),
       ],
     );
   }
 
   void hide() => _messenger?.hideCurrentMaterialBanner();
 
-  void _showReadyBanner(VoidCallback? onRestart) {
+  void _askToDownloadBanner(
+    ShorebirdUpdateStrings text,
+    VoidCallback onDownload,
+  ) {
     _showBanner(
-      content: Text(strings.readyToApply),
+      content: Text(text.updateAvailable),
+      actions: [
+        TextButton(
+          onPressed: () {
+            hide();
+            onDownload();
+          },
+          child: Text(text.download),
+        ),
+        TextButton(onPressed: hide, child: Text(text.later)),
+      ],
+    );
+  }
+
+  /// Dismissible, unlike the "ready" dialog: declining a download is a normal
+  /// choice, so a back gesture or barrier tap means "Later".
+  void _askToDownloadDialog(
+    ShorebirdUpdateStrings text,
+    VoidCallback onDownload,
+  ) {
+    final context = _context;
+    if (context == null) return;
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text(text.availableTitle),
+            content: Text(text.updateAvailable),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(text.later),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  onDownload();
+                },
+                child: Text(text.download),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showReadyBanner(ShorebirdUpdateStrings text, VoidCallback? onRestart) {
+    _showBanner(
+      content: Text(text.readyToApply),
       actions: [
         if (onRestart != null)
           TextButton(
@@ -103,22 +179,19 @@ class ShorebirdUpdatePrompter {
               hide();
               onRestart();
             },
-            child: Text(strings.restartNow),
+            child: Text(text.restartNow),
           ),
         TextButton(
           onPressed: hide,
-          child: Text(onRestart != null ? strings.later : strings.dismiss),
+          child: Text(onRestart != null ? text.later : text.dismiss),
         ),
       ],
     );
   }
 
-  void _showReadyDialog(VoidCallback? onRestart) {
+  void _showReadyDialog(ShorebirdUpdateStrings text, VoidCallback? onRestart) {
     final context = _context;
-    if (context == null) {
-      _log('No navigator context available; skipping update dialog.');
-      return;
-    }
+    if (context == null) return;
     unawaited(
       showDialog<void>(
         context: context,
@@ -127,14 +200,12 @@ class ShorebirdUpdatePrompter {
           return PopScope(
             canPop: false,
             child: AlertDialog(
-              title: Text(strings.readyTitle),
-              content: Text(strings.readyToApply),
+              title: Text(text.readyTitle),
+              content: Text(text.readyToApply),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(
-                    onRestart != null ? strings.later : strings.dismiss,
-                  ),
+                  child: Text(onRestart != null ? text.later : text.dismiss),
                 ),
                 if (onRestart != null)
                   TextButton(
@@ -142,7 +213,7 @@ class ShorebirdUpdatePrompter {
                       Navigator.of(dialogContext).pop();
                       onRestart();
                     },
-                    child: Text(strings.restartNow),
+                    child: Text(text.restartNow),
                   ),
               ],
             ),

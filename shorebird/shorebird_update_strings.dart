@@ -14,6 +14,7 @@ import 'package:flutter/foundation.dart';
 @immutable
 class ShorebirdUpdateStrings {
   const ShorebirdUpdateStrings({
+    this.availableTitle = 'Update Available',
     this.updateAvailable = 'A new update is available.',
     this.download = 'Download',
     this.later = 'Later',
@@ -26,12 +27,14 @@ class ShorebirdUpdateStrings {
     this.downloadFailed = 'Could not download the update.',
   });
 
+  /// Title of the "update available" prompt. Dialog style only.
+  final String availableTitle;
   final String updateAvailable;
   final String download;
   final String later;
   final String downloading;
 
-  /// Dialog title, used only with `ShorebirdReadyPromptStyle.dialog`.
+  /// Title of the "update ready" prompt. Dialog style only.
   final String readyTitle;
   final String readyToApply;
   final String restartNow;

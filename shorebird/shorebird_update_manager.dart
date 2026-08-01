@@ -62,6 +62,7 @@ class ShorebirdUpdateManager {
   static ShorebirdUpdatePrompter get _ui => ShorebirdUpdatePrompter(
         navigatorKey: _navigatorKey,
         strings: _config.strings,
+        stringsBuilder: _config.stringsBuilder,
         logger: _log,
       );
 
@@ -165,7 +166,10 @@ class ShorebirdUpdateManager {
           onUpdateAvailable?.call();
           if (_config.mode == ShorebirdUpdateMode.askBeforeDownload) {
             _emit(state.value.copyWith(phase: ShorebirdUpdatePhase.idle));
-            _ui.askToDownload(onDownload: () => unawaited(_download()));
+            _ui.askToDownload(
+              style: _config.promptStyle,
+              onDownload: () => unawaited(_download()),
+            );
           } else {
             await _download();
           }
@@ -234,6 +238,9 @@ class ShorebirdUpdateManager {
   // Internals
   // ---------------------------------------------------------------------------
 
+  /// Progress is surfaced in every non-silent mode: once the app has decided
+  /// to show update UI at all, a visible download beats a dead pause before
+  /// the "update ready" prompt appears.
   static Future<void> _download() async {
     _emit(state.value.copyWith(phase: ShorebirdUpdatePhase.downloading));
     if (_config.mode != ShorebirdUpdateMode.silent) _ui.showDownloading();

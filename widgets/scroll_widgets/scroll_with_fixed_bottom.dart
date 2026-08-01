@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 
 class ScrollWithFixedBottom extends StatelessWidget {
-  final Widget scrollableContent;
-  final Widget bottomContent;
-
   const ScrollWithFixedBottom({
-    Key? key,
+    super.key,
     required this.scrollableContent,
     required this.bottomContent,
-  }) : super(key: key);
+    this.padding,
+    this.bottomPadding,
+    this.physics = const ClampingScrollPhysics(),
+  });
+
+  final Widget scrollableContent;
+
+  final Widget bottomContent;
+
+  final EdgeInsetsGeometry? padding;
+
+  final EdgeInsetsGeometry? bottomPadding;
+
+  final ScrollPhysics? physics;
 
   @override
   Widget build(BuildContext context) {
@@ -16,15 +26,22 @@ class ScrollWithFixedBottom extends StatelessWidget {
       children: [
         Expanded(
           child: CustomScrollView(
+            physics: physics,
             slivers: [
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: scrollableContent,
-              )
+              SliverPadding(
+                padding: padding ?? EdgeInsets.zero,
+                sliver: SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: scrollableContent,
+                ),
+              ),
             ],
           ),
         ),
-        bottomContent,
+        Padding(
+          padding: bottomPadding ?? EdgeInsets.zero,
+          child: bottomContent,
+        ),
       ],
     );
   }

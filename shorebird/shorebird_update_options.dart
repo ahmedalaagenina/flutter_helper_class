@@ -11,18 +11,21 @@ enum ShorebirdUpdateMode {
   /// the update is ready.
   notifyWhenReady,
 
-  /// Show a banner asking the user before downloading anything.
+  /// Ask the user before downloading anything.
   ///
   /// Use this only if patches are large and you care about metered data.
   askBeforeDownload,
 }
 
-/// How a ready-to-apply patch is surfaced when the mode is not
+/// How every prompt is rendered when the mode is not
 /// [ShorebirdUpdateMode.silent].
-enum ShorebirdReadyPromptStyle {
+///
+/// Applies to both the "update available" prompt and the "update ready"
+/// prompt, so the two always match.
+enum ShorebirdPromptStyle {
   /// A `MaterialBanner` at the top of the screen. Non-blocking.
   banner,
 
-  /// A modal, non-dismissible `AlertDialog`.
+  /// A modal `AlertDialog`.
   dialog,
 }

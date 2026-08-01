@@ -49,7 +49,7 @@ users on any screen.
 | `shorebird_update_manager.dart` | Scheduling, throttling, download, retry. No widget code |
 | `shorebird_update_prompter.dart` | All UI (banners + dialog). Swap it for your own look |
 | `shorebird_update_config.dart` | Every knob, with defaults |
-| `shorebird_update_options.dart` | `ShorebirdUpdateMode`, `ShorebirdReadyPromptStyle` |
+| `shorebird_update_options.dart` | `ShorebirdUpdateMode`, `ShorebirdPromptStyle` |
 | `shorebird_update_state.dart` | `ShorebirdUpdatePhase`, `ShorebirdUpdateState` |
 | `shorebird_update_strings.dart` | User-facing strings, for localization |
 | `restart_widget.dart` | Subtree reset widget (see caveat below) |
@@ -62,8 +62,24 @@ users on any screen.
 | `notifyWhenReady` | Downloads automatically, then prompts "update ready" |
 | `askBeforeDownload` | Prompts before downloading. Use if patches are large |
 
-`promptStyle` picks how `notifyWhenReady` surfaces: `banner` (non-blocking
-`MaterialBanner`) or `dialog` (modal, non-dismissible `AlertDialog`).
+## Prompt style
+
+`promptStyle` controls how **every** prompt is rendered, so the "update
+available" and "update ready" steps always look alike:
+
+| | `ShorebirdPromptStyle.banner` | `ShorebirdPromptStyle.dialog` |
+|---|---|---|
+| Update available | `MaterialBanner`, Download / Later | `AlertDialog`, Download / Later — dismissible |
+| Update ready | `MaterialBanner`, Restart / Later | `AlertDialog`, Restart / Later — **not** dismissible |
+| Downloading | `MaterialBanner` + spinner | same |
+| Error | `MaterialBanner`, Dismiss | same |
+
+Only the "ready" dialog blocks: declining a download is a normal choice, so a
+back gesture there means "Later", while a staged patch is worth one deliberate
+answer. Progress and error stay as banners in both styles — they carry no
+decision, so a modal would only be in the way.
+
+Dialog style uses `availableTitle` and `readyTitle`; banner style ignores both.
 
 ## Full configuration
 
@@ -72,7 +88,7 @@ ShorebirdUpdateManager.initialize(
   navigatorKey: navigatorKey,
   config: ShorebirdUpdateConfig(
     mode: ShorebirdUpdateMode.notifyWhenReady,
-    promptStyle: ShorebirdReadyPromptStyle.banner,
+    promptStyle: ShorebirdPromptStyle.banner,
     track: UpdateTrack.stable,
 
     checkOnStart: true,
@@ -83,9 +99,9 @@ ShorebirdUpdateManager.initialize(
     maxRetries: 2,
     retryBackoff: const Duration(seconds: 5),
 
-    strings: ShorebirdUpdateStrings(
-      readyToApply: S.current.updateReady,
-      restartNow: S.current.restartNow,
+    stringsBuilder: (context) => ShorebirdUpdateStrings(
+      readyToApply: S.of(context).updateReadyBody,
+      restartNow: S.of(context).updateRestartNow,
     ),
 
     onRestartRequested: () {
@@ -103,7 +119,7 @@ ShorebirdUpdateManager.initialize(
 | Field | Default | Notes |
 |---|---|---|
 | `mode` | `silent` | See table above |
-| `promptStyle` | `banner` | Ignored in `silent` |
+| `promptStyle` | `banner` | Applies to all prompts. Ignored in `silent` |
 | `track` | `UpdateTrack.stable` | Also `beta`, `staging`, or `UpdateTrack('custom')` |
 | `checkOnStart` | `true` | One check after `startDelay` |
 | `checkOnResume` | `true` | Re-check on foreground, subject to `minCheckInterval` |
@@ -111,11 +127,44 @@ ShorebirdUpdateManager.initialize(
 | `minCheckInterval` | 30 min | Throttle for automatic checks only |
 | `maxRetries` | 2 | Extra download attempts on network failure |
 | `retryBackoff` | 5s | Grows linearly: 5s, 10s, … |
-| `strings` | English | Pass localized values |
+| `strings` | English | Static strings. Ignored if `stringsBuilder` is set |
+| `stringsBuilder` | `null` | Resolves strings per prompt — use this when localized |
 | `onRestartRequested` | `null` | Adds a "Restart now" action to the prompt |
 | `onStateChanged` | `null` | Mirrors `ShorebirdUpdateManager.state` |
 | `onError` | `null` | Send to Crashlytics/Sentry |
 | `logger` | `dart:developer` | Route into your own logger |
+
+## Localization
+
+Pass `stringsBuilder` rather than `strings`. It receives a `BuildContext` and
+runs at the moment a prompt is shown, which means two things:
+
+- the app is mounted, so `S.of(context)` is always valid — no need to load
+  localizations early in `main()`;
+- the prompt follows the language the user is on *right now*, even if they
+  switched it after launch.
+
+```dart
+stringsBuilder: (context) => ShorebirdUpdateStrings(
+  availableTitle: S.of(context).updateAvailableTitle,
+  updateAvailable: S.of(context).updateAvailable,
+  download: S.of(context).updateDownload,
+  downloading: S.of(context).updateDownloading,
+  readyTitle: S.of(context).updateReadyTitle,
+  readyToApply: S.of(context).updateReadyBody,
+  restartNow: S.of(context).updateRestartNow,
+  later: S.of(context).updateLater,
+  dismiss: S.of(context).updateDismiss,
+  downloadFailed: S.of(context).updateDownloadFailed,
+),
+```
+
+In this app the ten `update*` keys live in `lib/l10n/intl_en.arb` and
+`intl_ar.arb`. After editing an ARB, regenerate with:
+
+```sh
+dart run intl_utils:generate
+```
 
 ## Reading state
 
