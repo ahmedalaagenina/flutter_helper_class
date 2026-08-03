@@ -10,6 +10,12 @@ import 'package:app_settings/app_settings.dart';
 
 // const GOOGLE_API_KEY = 'AIzaSyCvrYkbhs9PAMtEAaTwnXrFtQaBz-GS60Q';
 const GOOGLE_API_KEY = 'AIzaSyBT30Wp2jPm5sw9DrP9qTge8SZgBsAO_wI';
+// ios sdk map 
+// AIzaSyAVTD6uXqBkg6mvgjvYAl6raybOtczYKNQ
+
+
+// android sdk map 
+// AIzaSyCqB0bKKiDOUj8Fgj0k_Ag4Ni6OYuDK_WA
 
 // handle foreground and background
 class LocationService {

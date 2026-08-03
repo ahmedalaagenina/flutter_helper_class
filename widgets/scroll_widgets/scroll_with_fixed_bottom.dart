@@ -11,13 +11,9 @@ class ScrollWithFixedBottom extends StatelessWidget {
   });
 
   final Widget scrollableContent;
-
   final Widget bottomContent;
-
   final EdgeInsetsGeometry? padding;
-
   final EdgeInsetsGeometry? bottomPadding;
-
   final ScrollPhysics? physics;
 
   @override

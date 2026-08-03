@@ -115,20 +115,25 @@ class DateTimeHelper {
     }
   }
 
-  static String getTimeDifferenceFromNow(DateTime dateTime) {
-    final Duration difference = DateTime.now().difference(dateTime);
-    if (difference.inSeconds < 5) {
-      return 'Just now';
-    } else if (difference.inMinutes < 1) {
-      return '${difference.inSeconds}s ago';
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else {
-      return '${difference.inDays}d ago';
+  static const Duration justNowThreshold = Duration(seconds: 90);
+  static const int absoluteAfterDays = 7;
+
+  static String getTimeDifferenceFromNow(DateTime dateTime, {DateTime? now}) {
+    final elapsed = (now ?? DateTime.now()).difference(dateTime);
+    if (elapsed.isNegative || elapsed < justNowThreshold) {
+      return S.current.justNow;
     }
+    if (elapsed.inHours < 1) return S.current.minutesAgo(elapsed.inMinutes);
+    if (elapsed.inDays < 1) return S.current.hoursAgo(elapsed.inHours);
+    if (elapsed.inDays < absoluteAfterDays) {
+      return S.current.daysAgo(elapsed.inDays);
+    }
+
+    return toDateAndTime(dateTime);
   }
+
+  static String toDateAndTime(DateTime dateTime) =>
+      DateFormat.yMMMd().add_Hm().format(dateTime);
 
   static List<DateTime> getCommonDates(
     List<DateTime> firstDates,

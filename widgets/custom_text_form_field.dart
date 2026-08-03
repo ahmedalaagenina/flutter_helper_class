@@ -169,9 +169,44 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
   }
 
   @override
-  void didChangeDependencies() {
+  void initState() {
+    super.initState();
     _isObscure = widget.isSecured;
-    super.didChangeDependencies();
+  }
+
+  @override
+  void didUpdateWidget(CustomTextFormField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isSecured != oldWidget.isSecured) {
+      _isObscure = widget.isSecured;
+    }
+  }
+
+  bool get _isSensitive =>
+      widget.isSecured ||
+      widget.keyboardType == TextInputType.emailAddress ||
+      widget.validateText.toLowerCase().contains('password');
+
+  bool get _autocorrect => _isSensitive ? false : widget.autoCorrect;
+
+  bool get _enableSuggestions =>
+      _isSensitive ? false : widget.enableSuggestions;
+
+  /// Marks a decoration widget as belonging to the text field.
+  ///
+  /// Prefix and suffix icons are rendered by the [InputDecorator], which sits
+  /// *outside* the [EditableText]'s tap region. Since [dismissOutSideTap]
+  /// unfocuses on `onTapOutside`, tapping the reveal toggle counted as a tap
+  /// outside the field: focus dropped, the keyboard dismissed, and any
+  /// keyboard-anchored layout lurched — then the rebuild restored focus and it
+  /// all came back. A one-glyph toggle should not close the keyboard.
+  ///
+  /// `TextField` puts its own tap region in the group keyed by the
+  /// [EditableText] type, so joining that group makes these taps count as
+  /// inside the field.
+  Widget? _wrapAsPartOfField(Widget? decoration) {
+    if (decoration == null) return null;
+    return TapRegion(groupId: EditableText, child: decoration);
   }
 
   @override
@@ -221,9 +256,9 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                     keyboardType: widget.keyboardType,
                     maxLines: widget.isMultiLine ? widget.maxLines : 1,
                     maxLength: widget.maxLength,
-                    autocorrect: widget.autoCorrect,
+                    autocorrect: _autocorrect,
                     autofocus: widget.autoFocus,
-                    enableSuggestions: widget.enableSuggestions,
+                    enableSuggestions: _enableSuggestions,
                     textInputAction: widget.textInputAction,
                     autofillHints: widget.autofillHints,
                     cursorColor: widget.cursorColor,
@@ -240,7 +275,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                           .copyWith(
                             color:
                                 widget.hintColor ??
-                                Theme.of(context).colorScheme.primary,
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: widget.hintFontSize,
                             fontWeight: widget.hintFontWeight,
                           ),
@@ -249,7 +284,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                       labelStyle: TextStyle(
                         color:
                             widget.labelColor ??
-                            Theme.of(context).colorScheme.primary,
+                            Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: widget.labelTextSize,
                         fontWeight: widget.labelTextWeight,
                       ),
@@ -265,47 +300,62 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                           (!widget.isEnabled ? Colors.grey : Colors.white70),
                       enabled: widget.isEnabled,
                       filled: widget.backgroundColor != null || widget.isFilled,
-                      suffixIcon:
-                          widget.suffix ??
-                          (widget.isSecured
-                              ? IconButton(
-                                  icon: Icon(
-                                    !_isObscure
-                                        ? Icons.visibility
-                                        : Icons.visibility_off,
-                                    color: !_isObscure
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Colors.grey,
-                                  ),
-                                  onPressed: () =>
-                                      setState(() => _isObscure = !_isObscure),
-                                )
-                              : widget.suffixIcon != null
-                              ? GestureDetector(
-                                  onTap: widget.suffixTap,
-                                  child: Icon(
-                                    widget.suffixIcon,
-                                    size: widget.suffixIconSize,
-                                    color:
-                                        widget.suffixIconColor ??
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
-                                )
-                              : null),
-                      prefixIcon:
-                          widget.prefixWidget ??
-                          (widget.prefixIcon != null
-                              ? Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: IconButton(
-                                    icon: Icon(
-                                      widget.prefixIcon,
-                                      color: Colors.grey,
+                      suffixIcon: _wrapAsPartOfField(
+                        widget.suffix ??
+                            (widget.isSecured
+                                ? ExcludeFocus(
+                                    child: IconButton(
+                                      icon: Icon(
+                                        !_isObscure
+                                            ? Icons.visibility
+                                            : Icons.visibility_off,
+                                        color: !_isObscure
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
+                                      ),
+                                      onPressed: () => setState(
+                                        () => _isObscure = !_isObscure,
+                                      ),
                                     ),
-                                    onPressed: widget.prefixTap,
-                                  ),
-                                )
-                              : null),
+                                  )
+                                : widget.suffixIcon != null
+                                ? GestureDetector(
+                                    onTap: widget.suffixTap,
+                                    child: Icon(
+                                      widget.suffixIcon,
+                                      size: widget.suffixIconSize,
+                                      color:
+                                          widget.suffixIconColor ??
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                    ),
+                                  )
+                                : null),
+                      ),
+                      prefixIcon: _wrapAsPartOfField(
+                        widget.prefixWidget ??
+                            (widget.prefixIcon != null
+                                ? Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: ExcludeFocus(
+                                      child: IconButton(
+                                        icon: Icon(
+                                          widget.prefixIcon,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                        onPressed: widget.prefixTap,
+                                      ),
+                                    ),
+                                  )
+                                : null),
+                      ),
                       border: !widget.haveBorder
                           ? InputBorder.none
                           : OutlineInputBorder(
@@ -359,7 +409,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                       fontWeight: widget.textFontWeight,
                       color:
                           widget.textColor ??
-                          Theme.of(context).colorScheme.primary,
+                          Theme.of(context).colorScheme.onSurface,
                     ),
                     onFieldSubmitted: widget.onFieldSubmitted,
                     validator:
@@ -404,7 +454,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
             ),
           ),
         ],
-      ),``
+      ),
     );
   }
 }

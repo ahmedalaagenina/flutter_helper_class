@@ -42,4 +42,10 @@ final class BlocPagingState<T> extends PagingStateBase<int, T> {
     isLoading: false,
     search: null,
   );
+  @override
+  bool operator ==(Object other) =>
+      super == other && other is BlocPagingState<T> && other.search == search;
+
+  @override
+  int get hashCode => Object.hash(super.hashCode, search);
 }
