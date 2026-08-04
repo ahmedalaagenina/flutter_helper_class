@@ -166,7 +166,6 @@ class AppButton extends StatefulWidget {
     this.radius = 8,
     this.border,
     this.backgroundColor,
-    this.disabledBackgroundColor,
     this.textColor,
     this.disabledTextColor,
     this.gradient,
@@ -204,6 +203,7 @@ class AppButton extends StatefulWidget {
        colorBlendMode = BlendMode.srcIn,
        isSelected = false,
        onSelectionChanged = null,
+       disabledBackgroundColor = Colors.transparent,
        activeColor = Colors.red,
        inactiveColor = Colors.grey,
        animationType = AppButtonAnimationType.none,
@@ -624,7 +624,7 @@ class _AppButtonState extends State<AppButton> with TickerProviderStateMixin {
               ]
             : null);
 
-    Widget buttonWrap = Container(
+    final Widget buttonWrap = Container(
       width: widget.width,
       height: resolvedHeight,
       margin: widget.margin,
@@ -696,19 +696,21 @@ class _AppButtonState extends State<AppButton> with TickerProviderStateMixin {
         widget.imageAsset != null;
 
     if (!widget.centerTitle) {
+      final label = widget.expandText
+          ? Expanded(child: textWidget)
+          : Flexible(child: textWidget);
+
+      final children = <Widget>[
+        if (hasIcon) ...[iconWidget, SizedBox(width: widget.spacing)],
+        label,
+      ];
+
       return Row(
         mainAxisSize: widget.haveFullWidth
             ? MainAxisSize.max
             : MainAxisSize.min,
         mainAxisAlignment: widget.mainAxisAlignment,
-        textDirection: widget.iconAtEnd ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          if (hasIcon) iconWidget,
-          if (hasIcon) SizedBox(width: widget.spacing),
-          widget.expandText
-              ? Expanded(child: textWidget)
-              : Flexible(child: textWidget),
-        ],
+        children: widget.iconAtEnd ? children.reversed.toList() : children,
       );
     } else {
       return Stack(
