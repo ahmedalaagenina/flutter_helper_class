@@ -7,8 +7,12 @@ import 'package:injectable/injectable.dart';
 class ReverseGeocoder {
   ReverseGeocoder();
 
+  final Geocoding _geocoding = Geocoding();
+
   final Map<String, String?> _cache = {};
   static const int _keyPrecision = 4;
+  static const Duration _timeout = Duration(seconds: 8);
+
   Future<String?> lookup(double latitude, double longitude) async {
     final key =
         '${latitude.toStringAsFixed(_keyPrecision)},'
@@ -17,8 +21,12 @@ class ReverseGeocoder {
     if (_cache.containsKey(key)) return _cache[key];
 
     try {
-      final places = await placemarkFromCoordinates(latitude, longitude);
+      final places = await _geocoding
+          .placemarkFromCoordinates(latitude, longitude)
+          .timeout(_timeout);
+
       final address = places.isEmpty ? null : _format(places.first);
+
       _cache[key] = address;
       return address;
     } on Exception catch (error) {
@@ -26,6 +34,14 @@ class ReverseGeocoder {
       return null;
     }
   }
+
+  static bool isHumanReadable(String? value) {
+    final text = value?.trim();
+    if (text == null || text.length < 2 || text == '-') return false;
+    return _letter.hasMatch(text);
+  }
+
+  static final RegExp _letter = RegExp(r'\p{L}', unicode: true);
 
   static String? _format(Placemark place) {
     final parts = <String>[
@@ -43,13 +59,10 @@ class ReverseGeocoder {
     }
 
     if (unique.isEmpty) return null;
+
     return unique.take(4).join(', ');
   }
 
-  static String? _clean(String? value) {
-    final text = value?.trim();
-    if (text == null || text.isEmpty) return null;
-    if (text.length < 2) return null;
-    return text;
-  }
+  static String? _clean(String? value) =>
+      isHumanReadable(value) ? value!.trim() : null;
 }
