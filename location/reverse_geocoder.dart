@@ -7,7 +7,21 @@ import 'package:injectable/injectable.dart';
 class ReverseGeocoder {
   ReverseGeocoder();
 
-  final Geocoding _geocoding = Geocoding();
+  Geocoding? _geocoding;
+
+  bool _isUnavailable = false;
+
+  Geocoding? get _service {
+    if (_isUnavailable) return null;
+
+    try {
+      return _geocoding ??= Geocoding();
+    } on Object catch (error) {
+      _isUnavailable = true;
+      AppLog.w('[ReverseGeocoder] platform unavailable — $error');
+      return null;
+    }
+  }
 
   final Map<String, String?> _cache = {};
   static const int _keyPrecision = 4;
@@ -20,8 +34,11 @@ class ReverseGeocoder {
 
     if (_cache.containsKey(key)) return _cache[key];
 
+    final service = _service;
+    if (service == null) return null;
+
     try {
-      final places = await _geocoding
+      final places = await service
           .placemarkFromCoordinates(latitude, longitude)
           .timeout(_timeout);
 
@@ -29,7 +46,7 @@ class ReverseGeocoder {
 
       _cache[key] = address;
       return address;
-    } on Exception catch (error) {
+    } on Object catch (error) {
       AppLog.w('[ReverseGeocoder] $key failed: $error');
       return null;
     }
