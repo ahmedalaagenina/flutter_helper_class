@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:idara_driver/core/networking/networking.dart';
+import 'package:idara_tracking_app/core/networking/networking.dart';
 
 class RetryInterceptor extends Interceptor {
   final Dio dio;
@@ -20,6 +20,15 @@ class RetryInterceptor extends Interceptor {
     MethodType.options.apiValue,
   ];
 
+  static const List<String> nonRetryablePathFragments = [
+    'destroy_',
+    'delete_',
+    'send_gprs_command',
+    'send_sms_command',
+    'send_command',
+    'change_active_',
+  ];
+
   RetryInterceptor({
     required this.dio,
     this.maxRetries = 3,
@@ -34,9 +43,9 @@ class RetryInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     final extraMap = err.requestOptions.extra;
-    final retryCount = extraMap['retryCount'] ?? 0;
-    final maxRetries = extraMap['maxRetries'] ?? this.maxRetries;
-    final retryDelay = extraMap['retryDelay'] ?? initialDelay;
+    final retryCount = extraMap['retryCount'] as int? ?? 0;
+    final maxRetries = extraMap['maxRetries'] as int? ?? this.maxRetries;
+    final retryDelay = extraMap['retryDelay'] as Duration? ?? initialDelay;
 
     if (_shouldRetry(err) && retryCount < maxRetries) {
       final serverRequestedDelay = _getRetryAfterDelay(err.response);
@@ -49,16 +58,16 @@ class RetryInterceptor extends Interceptor {
         'Attempt ${retryCount + 1} after ${delay.inMilliseconds}ms',
       );
 
-      await Future.delayed(delay);
+      await Future<void>.delayed(delay);
 
       try {
         if (err.requestOptions.data is FormData) {
           final recreateFn = err.requestOptions.extra['recreateFormData'];
-          if (recreateFn is Function) {
+          if (recreateFn is dynamic Function()) {
             err.requestOptions.data = await recreateFn();
           }
         }
-        final response = await dio.fetch(err.requestOptions);
+        final response = await dio.fetch<void>(err.requestOptions);
         return handler.resolve(response);
       } on DioException catch (e) {
         return handler.next(e);
@@ -70,6 +79,9 @@ class RetryInterceptor extends Interceptor {
 
   bool _shouldRetry(DioException err) {
     final method = err.requestOptions.method.toUpperCase();
+
+    if (_isNonRetryablePath(err.requestOptions.path)) return false;
+
     final isSafeMethod = safeMethods.contains(method);
 
     if (shouldRetryOnTimeout &&
@@ -97,7 +109,13 @@ class RetryInterceptor extends Interceptor {
     return false;
   }
 
-  Duration? _getRetryAfterDelay(Response? response) {
+  /// Whether [path] matches any fragment in [nonRetryablePathFragments].
+  bool _isNonRetryablePath(String path) {
+    final lower = path.toLowerCase();
+    return nonRetryablePathFragments.any(lower.contains);
+  }
+
+  Duration? _getRetryAfterDelay(Response<dynamic>? response) {
     if (response == null) return null;
 
     var retryAfterHeader = response.headers.value('retry-after');
