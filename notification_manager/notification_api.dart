@@ -20,6 +20,55 @@ class NotificationApi {
     return null;
   }
 
+  static Future<String?> registrationToken() async {
+    try {
+      final settings = await messaging.requestPermission();
+      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+        AppLog.i('[NotificationApi] Notifications declined');
+        return null;
+      }
+
+      if (Platform.isIOS && !await _waitForApnsToken()) {
+        AppLog.w('[NotificationApi] No APNS token; skipping FCM registration');
+        return null;
+      }
+
+      return await messaging.getToken();
+    } on Object catch (error) {
+      AppLog.w('[NotificationApi] Token unavailable — $error');
+      return null;
+    }
+  }
+
+  static Future<bool> _waitForApnsToken({
+    Duration timeout = const Duration(seconds: 10),
+    Duration interval = const Duration(milliseconds: 500),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        if (await messaging.getAPNSToken() != null) return true;
+      } on Object {
+        // Not ready yet. `getAPNSToken()` throws rather than returning null
+        // before APNS answers, so this is the normal path for the first second
+        // or two after launch — nothing to log.
+      }
+      await Future<void>.delayed(interval);
+    }
+
+    return false;
+  }
+
+  static Stream<String> get onTokenRefresh {
+    try {
+      return messaging.onTokenRefresh;
+    } on Object catch (error) {
+      AppLog.w('[NotificationApi] Refresh stream unavailable — $error');
+      return const Stream<String>.empty();
+    }
+  }
+
   /// How to use it?
   /// in main()
   // await NotificationApi.init();
@@ -106,8 +155,8 @@ class NotificationApi {
   /// Handle foreground message and notification
   static void foregroundNotification() {
     // Provide the root context so in-app UI actions can show snackbars, etc.
-    ForegroundNotificationHandler.instance.contextProvider =
-        () => rootNavigatorKey.currentContext;
+    ForegroundNotificationHandler.instance.contextProvider = () =>
+        rootNavigatorKey.currentContext;
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('Got a message whilst in the foreground!');
