@@ -7,22 +7,10 @@ import 'package:idara_esign/core/services/logger_service.dart';
 
 class NotificationApi {
   static FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-  static Future<String?> getDeviceToken() async {
+  static bool _isInitialized = false;
+  static Future<String?> getDeviceFCMToken() async {
     try {
-      if (kIsWeb) {
-        return await WebNotificationService.getToken();
-      }
-      return await messaging.getToken();
-    } catch (e) {
-      AppLog.e('Error getting FCM token: $e');
-    }
-    return null;
-  }
-
-  static Future<String?> registrationToken() async {
-    try {
-      final settings = await messaging.requestPermission();
+      final settings = await requestPermission();
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
         AppLog.i('[NotificationApi] Notifications declined');
         return null;
@@ -74,6 +62,8 @@ class NotificationApi {
   // await NotificationApi.init();
 
   static Future<void> init() async {
+    if (_isInitialized) return;
+    _isInitialized = true;
     // Web has its own pipeline: no flutter_local_notifications, no Platform.is*,
     // and getToken needs a VAPID key. Delegate and bail out.
     if (kIsWeb) {
@@ -91,7 +81,10 @@ class NotificationApi {
     );
 
     NotificationHelper().initialize();
-    NotificationApi.requestPermission();
+
+    /// this done by registrationToken()
+    // NotificationApi.requestPermission();
+
     NotificationApi.foregroundNotification();
     _registerForegroundActions();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -130,18 +123,12 @@ class NotificationApi {
     );
   }
 
-  static void requestPermission() async {
-    NotificationSettings settings = await messaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
-
-    debugPrint('User granted permission: ${settings.authorizationStatus}');
+  static Future<NotificationSettings> requestPermission() async {
+    final NotificationSettings settings = await messaging.requestPermission();
+    if (settings.authorizationStatus != AuthorizationStatus.denied) {
+      debugPrint('User granted permission: ${settings.authorizationStatus}');
+    }
+    return settings;
   }
 
   /// Handle background message only not notification
