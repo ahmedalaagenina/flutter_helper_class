@@ -84,3 +84,81 @@ class AppRouteRedirector {
     });
   }
 }
+
+
+/// simple one 
+// import 'package:flutter/material.dart';
+// import 'package:go_router/go_router.dart';
+// import 'package:idara_tracking_app/config/router/app_routes.dart';
+// import 'package:idara_tracking_app/config/router/go_router_refresh_stream.dart';
+// import 'package:idara_tracking_app/core/constants/app_constants.dart';
+// import 'package:idara_tracking_app/core/util/app_log.dart';
+// import 'package:idara_tracking_app/features/auth/presentation/bloc/auth_bloc.dart';
+// import 'package:injectable/injectable.dart';
+
+// @lazySingleton
+// class AppRouteRedirector {
+//   AppRouteRedirector(this._authBloc, this._refreshNotifier);
+
+//   final AuthBloc _authBloc;
+//   final AppRouterRefreshNotifier _refreshNotifier;
+//   DateTime? _splashVisibleUntil;
+//   DateTime? _splashGiveUpAt;
+//   final Set<DateTime> _scheduledWakes = {};
+
+//   String? redirect(BuildContext context, GoRouterState state) {
+//     final status = _authBloc.state.status;
+//     final location = state.matchedLocation;
+
+//     final isSplash = location == AppRoutesPath.splash;
+//     final isPublic = AppRoutesPath.publicPaths.contains(location);
+//     if (status == AuthStatus.unknown && !isSplash) {
+//       return AppRoutesPath.splash;
+//     }
+
+//     if (isSplash) {
+//       final now = DateTime.now();
+//       final showUntil = _splashVisibleUntil ??= now.add(
+//         AppConstants.splashMinDisplayTime,
+//       );
+//       final giveUpAt = _splashGiveUpAt ??= now.add(AppConstants.splashMaxWait);
+
+//       if (status == AuthStatus.unknown) {
+//         if (!now.isBefore(giveUpAt)) {
+//           AppLog.w(
+//             '[AppRouteRedirector] Session unresolved after '
+//             '${AppConstants.splashMaxWait.inSeconds}s — falling back to login.',
+//           );
+//           return AppRoutesPath.login;
+//         }
+
+//         _wakeAt(giveUpAt);
+//         return null;
+//       }
+
+//       if (now.isBefore(showUntil)) {
+//         _wakeAt(showUntil);
+//         return null;
+//       }
+//     }
+
+//     if (status == AuthStatus.unauthenticated) {
+//       return isPublic ? null : AppRoutesPath.login;
+//     }
+
+//     if (isSplash || isPublic) return AppRoutesPath.map;
+
+//     return null;
+//   }
+
+//   void _wakeAt(DateTime instant) {
+//     if (!_scheduledWakes.add(instant)) return;
+
+//     final remaining = instant.difference(DateTime.now());
+//     Future<void>.delayed(
+//       remaining.isNegative ? Duration.zero : remaining,
+//       _refreshNotifier.notify,
+//     );
+//   }
+// }
+

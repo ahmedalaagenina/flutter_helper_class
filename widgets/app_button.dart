@@ -597,7 +597,7 @@ class _AppButtonState extends State<AppButton> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primaryColor = theme.primaryColor;
+    final primaryColor = theme.colorScheme.primary;
 
     final defaultBg = widget.inverseColor ? Colors.white : primaryColor;
     final bg = widget.backgroundColor ?? defaultBg;
@@ -761,7 +761,7 @@ class _AppButtonState extends State<AppButton> with TickerProviderStateMixin {
   }
 
   Widget _buildTextWidget(ThemeData theme) {
-    final primaryColor = theme.primaryColor;
+    final primaryColor = theme.colorScheme.primary;
     final defaultTextColor = widget.inverseColor ? primaryColor : Colors.white;
     final effectiveTextColor = _isEffectivelyEnabled
         ? (widget.textColor ?? defaultTextColor)
@@ -799,7 +799,7 @@ class _AppButtonState extends State<AppButton> with TickerProviderStateMixin {
 
   Widget _buildIconWidget() {
     final theme = Theme.of(context);
-    final primaryColor = theme.primaryColor;
+    final primaryColor = theme.colorScheme.primary;
     final defaultIconColor = widget.inverseColor ? primaryColor : Colors.white;
     final effectiveIconColor = _isEffectivelyEnabled
         ? (widget.iconColor ?? defaultIconColor)

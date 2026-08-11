@@ -1,0 +1,90 @@
+[
+  {
+    "elementType": "geometry",
+    "stylers": [{ "color": "#f7f7f8" }]
+  },
+  {
+    "elementType": "labels.icon",
+    "stylers": [{ "visibility": "off" }]
+  },
+  {
+    "elementType": "labels.text.fill",
+    "stylers": [{ "color": "#4c4c55" }]
+  },
+  {
+    "elementType": "labels.text.stroke",
+    "stylers": [{ "color": "#ffffff" }]
+  },
+  {
+    "featureType": "administrative",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#dedee2" }]
+  },
+  {
+    "featureType": "administrative.land_parcel",
+    "stylers": [{ "visibility": "off" }]
+  },
+  {
+    "featureType": "administrative.locality",
+    "elementType": "labels.text.fill",
+    "stylers": [{ "color": "#33333a" }]
+  },
+  {
+    "featureType": "poi",
+    "stylers": [{ "visibility": "off" }]
+  },
+  {
+    "featureType": "poi.park",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#e4f0e8" }, { "visibility": "on" }]
+  },
+  {
+    "featureType": "road",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#ffffff" }]
+  },
+  {
+    "featureType": "road",
+    "elementType": "geometry.stroke",
+    "stylers": [{ "color": "#eeeef0" }]
+  },
+  {
+    "featureType": "road",
+    "elementType": "labels.text.fill",
+    "stylers": [{ "color": "#6e6e78" }]
+  },
+  {
+    "featureType": "road.arterial",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#ffffff" }]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#ffe9c4" }]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "geometry.stroke",
+    "stylers": [{ "color": "#f0d5a8" }]
+  },
+  {
+    "featureType": "road.local",
+    "elementType": "labels",
+    "stylers": [{ "visibility": "off" }]
+  },
+  {
+    "featureType": "transit",
+    "stylers": [{ "visibility": "off" }]
+  },
+  {
+    "featureType": "water",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#c9e4f0" }]
+  },
+  {
+    "featureType": "water",
+    "elementType": "labels.text.fill",
+    "stylers": [{ "color": "#7ba3b8" }]
+  }
+]

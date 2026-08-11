@@ -93,4 +93,9 @@ class NotificationNavigator {
     if (str.isEmpty || str.toLowerCase() == 'null') return null;
     return str;
   }
+
+  static int? _readInt(Map<String, dynamic> data, String key) {
+    final value = _readString(data, key);
+    return value == null ? null : int.tryParse(value);
+  }
 }
