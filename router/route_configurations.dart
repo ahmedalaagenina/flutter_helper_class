@@ -14,7 +14,8 @@ class RouteConfigurations {
   static late final GoRouter router;
   static final GlobalKey<NavigatorState> parentNavigatorKey =
       GlobalKey<NavigatorState>();
-
+  static final RouteObserver<PageRoute<void>> routeObserver =
+      RouteObserver<PageRoute<void>>();
   factory RouteConfigurations() => _instance;
 
   RouteConfigurations._internal();
@@ -79,6 +80,7 @@ class RouteConfigurations {
       debugLogDiagnostics: true,
       initialLocation: AppRoutesPath.splash,
       refreshListenable: getIt<AuthRouterRefreshNotifier>(),
+      observers: [routeObserver],
       redirect: AppRouteRedirector(
         sessionBloc: getIt(),
         onboardingRepo: getIt(),
