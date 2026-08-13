@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
-import 'package:kassemha/core/constants/app_constants.dart';
-import 'package:kassemha/core/local_storage/storage_keys.dart';
-import 'package:kassemha/generated/l10n.dart';
+import 'package:idara_tracking_app/core/constants/app_constants.dart';
+import 'package:idara_tracking_app/core/local_storage/local_storage.dart';
+import 'package:idara_tracking_app/generated/l10n.dart';
+import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 part 'locale_state.dart';
 
+@injectable
 class LocaleCubit extends Cubit<LocaleState> {
   final SharedPreferences storage;
 
@@ -19,16 +20,16 @@ class LocaleCubit extends Cubit<LocaleState> {
   /// Call this once after creating the cubit
   Future<void> init() async {
     final savedLocaleCode = storage.getString(StorageKeys.locale);
-    final initialLocale = savedLocaleCode == null
-        ? _systemLocale()
+    final saved = savedLocaleCode == null
+        ? null
         : Locale(_normalizeLocaleCode(savedLocaleCode));
 
-    final safeLocale = S.delegate.supportedLocales.contains(initialLocale)
-        ? initialLocale
+    final locale = saved != null && _isSupported(saved)
+        ? saved
         : _systemLocale();
 
-    emit(state.copyWith(locale: safeLocale, isLoading: true));
-    await S.load(safeLocale);
+    emit(state.copyWith(locale: locale, isLoading: true));
+    await S.load(locale);
 
     emit(state.copyWith(isLoading: false));
   }
@@ -42,11 +43,11 @@ class LocaleCubit extends Cubit<LocaleState> {
     await storage.setString(StorageKeys.locale, newLocale.languageCode);
 
     emit(state.copyWith(isLoading: false));
-    var context = rootNavigatorKey.currentContext;
-    if (context != null && context.mounted) {
-      AppLog.i('Restarting app');
-      RestartWidget.restartApp(context);
-    }
+    // var context = rootNavigatorKey.currentContext;
+    // if (context != null && context.mounted) {
+    //   AppLog.i('Restarting app');
+    //   RestartWidget.restartApp(context);
+    // }
   }
 
   Future<void> clearLocale() async {
@@ -67,7 +68,16 @@ class LocaleCubit extends Cubit<LocaleState> {
     return normalized.split('_').first; // ar_EG -> ar
   }
 
+  static bool _isSupported(Locale locale) =>
+      S.delegate.supportedLocales.contains(locale);
+
   static Locale _systemLocale() {
-    return Locale(_normalizeLocaleCode(Intl.systemLocale));
+    for (final preferred
+        in WidgetsBinding.instance.platformDispatcher.locales) {
+      final candidate = Locale(preferred.languageCode);
+      if (_isSupported(candidate)) return candidate;
+    }
+
+    return const Locale(AppConstants.englishLanguageCode);
   }
 }
