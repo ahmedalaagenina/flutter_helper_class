@@ -48,6 +48,15 @@ class NotificationApi {
     return false;
   }
 
+  static Future<void> deleteToken() async {
+    try {
+      await messaging.deleteToken();
+      AppLog.i('[NotificationApi] FCM token deleted');
+    } on Object catch (error) {
+      AppLog.w('[NotificationApi] Could not delete the FCM token — $error');
+    }
+  }
+
   static Stream<String> get onTokenRefresh {
     try {
       return messaging.onTokenRefresh;
