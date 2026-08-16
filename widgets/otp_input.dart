@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:idara_esign/config/theme/theme.dart';
 import 'package:pinput/pinput.dart';
 
@@ -45,9 +46,8 @@ class OtpInput extends StatelessWidget {
         final basePinTheme = PinTheme(
           width: cellWidth,
           height: cellHeight,
-          textStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          textStyle: Theme.of(context).textTheme.titleLarge
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(cellWidth * 0.28),
@@ -77,6 +77,10 @@ class OtpInput extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             keyboardType: TextInputType.number,
             autofillHints: const [AutofillHints.oneTimeCode],
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(length),
+            ],
             forceErrorState: hasError,
             defaultPinTheme: basePinTheme,
             separatorBuilder: (_) => const SizedBox(width: separator),
