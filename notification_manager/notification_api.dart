@@ -8,10 +8,10 @@ import 'package:idara_esign/core/services/logger_service.dart';
 class NotificationApi {
   static FirebaseMessaging messaging = FirebaseMessaging.instance;
   static bool _isInitialized = false;
+
   static Future<String?> getDeviceFCMToken() async {
     try {
-      final settings = await requestPermission();
-      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      if (!await ensurePermission()) {
         AppLog.i('[NotificationApi] Notifications declined');
         return null;
       }
@@ -46,6 +46,33 @@ class NotificationApi {
     }
 
     return false;
+  }
+
+  /// Whether the OS will let this app post notifications, asking if it has not
+  /// been asked yet.
+  ///
+  /// ⛔ The single answer to that question — [getDeviceFCMToken] defers to it
+  /// rather than deciding for itself. The two used to check separately and
+  /// disagreed: one rejected only an outright denial, the other accepted only
+  /// `authorized` or `provisional`. So on a not-yet-determined status the
+  /// settings switch refused to move while login-time registration went ahead
+  /// and minted a token anyway.
+  ///
+  /// Checked before switching push on, so a blocked permission can be reported
+  /// plainly. Without it the switch reads "on", no token is ever minted, and
+  /// nothing arrives — with nothing on screen to explain why.
+  static Future<bool> ensurePermission() async {
+    try {
+      final settings = await _requestPermission();
+      return switch (settings.authorizationStatus) {
+        AuthorizationStatus.authorized ||
+        AuthorizationStatus.provisional => true,
+        _ => false,
+      };
+    } on Object catch (error) {
+      AppLog.w('[NotificationApi] Permission check failed — $error');
+      return false;
+    }
   }
 
   static Future<void> deleteToken() async {
@@ -91,7 +118,7 @@ class NotificationApi {
 
     NotificationHelper().initialize();
 
-    /// this done by registrationToken()
+    /// this done by getDeviceFCMToken()
     // NotificationApi.requestPermission();
 
     NotificationApi.foregroundNotification();
@@ -132,11 +159,18 @@ class NotificationApi {
     );
   }
 
-  static Future<NotificationSettings> requestPermission() async {
-    final NotificationSettings settings = await messaging.requestPermission();
-    if (settings.authorizationStatus != AuthorizationStatus.denied) {
-      debugPrint('User granted permission: ${settings.authorizationStatus}');
-    }
+  /// Prompts, if the OS has not already asked, and reports what it decided.
+  ///
+  /// Private: [ensurePermission] is the way in. Two public methods that both
+  /// prompt, named "request" and "ensure", gave a caller no way to tell which
+  /// one they wanted.
+  static Future<NotificationSettings> _requestPermission() async {
+    final settings = await messaging.requestPermission();
+
+    // Logged whatever the answer. This used to skip the denied case, which is
+    // the one worth having in a log — "notifications never arrive" is nearly
+    // always this, and it left no trace.
+    AppLog.i('[NotificationApi] Permission: ${settings.authorizationStatus}');
     return settings;
   }
 
