@@ -86,6 +86,15 @@ class NotificationNavigator {
     context.go(route);
   }
 
+  static String? _currentPath() {
+    try {
+      return RouteConfigurations.router.state.uri.path;
+    } on Object catch (error) {
+      AppLog.w('[NotificationNavigator] Router location unavailable — $error');
+      return null;
+    }
+  }
+
   static String? _readString(Map<String, dynamic> data, String key) {
     final value = data[key];
     if (value == null) return null;
