@@ -161,3 +161,58 @@ extension ColorExtension on Color {
         .toColor();
   }
 }
+/// Small color helpers to derive shades/tints consistently.
+extension ColorX on Color {
+  Color darken([double amount = .1]) {
+    final hsl = HSLColor.fromColor(this);
+    final l = (hsl.lightness - amount).clamp(0.0, 1.0);
+    return hsl.withLightness(l).toColor();
+  }
+
+  Color lighten([double amount = .1]) {
+    final hsl = HSLColor.fromColor(this);
+    final l = (hsl.lightness + amount).clamp(0.0, 1.0);
+    return hsl.withLightness(l).toColor();
+  }
+
+  Color saturate([double amount = .1]) {
+    final hsl = HSLColor.fromColor(this);
+    final s = (hsl.saturation + amount).clamp(0.0, 1.0);
+    return hsl.withSaturation(s).toColor();
+  }
+
+  Color blend(Color other, double t) {
+    final tt = t.clamp(0.0, 1.0);
+    final a = (alpha + (other.alpha - alpha) * tt).round();
+    final r = (red + (other.red - red) * tt).round();
+    final g = (green + (other.green - green) * tt).round();
+    final b = (blue + (other.blue - blue) * tt).round();
+    return Color.fromARGB(a, r, g, b);
+  }
+
+  Color onColor() => computeLuminance() > 0.5 ? Colors.black : Colors.white;
+}
+
+@immutable
+class Tone {
+  final Color bg;
+  final Color fg;
+  const Tone({required this.bg, required this.fg});
+
+  factory Tone.light(Color base) {
+    var bg = base.blend(Colors.white, 0.84).saturate(0.06);
+    final fg = base.darken(0.12).saturate();
+
+    if (bg.computeLuminance() > 0.96) {
+      bg = base.blend(Colors.white, 0.78).saturate(0.08);
+    }
+
+    return Tone(bg: bg, fg: fg);
+  }
+
+  factory Tone.dark(Color base) {
+    final bg = base.darken(0.45).saturate(0.06);
+    final fg = base.lighten(0.35).saturate(0.06);
+    return Tone(bg: bg, fg: fg);
+  }
+}

@@ -13,6 +13,7 @@ import 'package:idara_esign/config/routes/route_names.dart';
 import 'package:idara_esign/core/services/logger_service.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+
 // NOTE: Import the following packages for platform-specific implementations
 // NOTE: This Will replacement for LocalNotificationApi But Wait For The Nxt Use Of It
 // NOTE: for More Details of use this package see https://github.com/MaikuB/flutter_local_notifications/blob/master/flutter_local_notifications/example/lib/main.dart#L347
@@ -52,7 +53,7 @@ class NotificationHelper {
       tz.setLocalLocation(tz.getLocation(tzName));
     } catch (e) {
       debugPrint('Timezone not found: $tzName, falling back to UTC. Error: $e');
-      tz.setLocalLocation(tz.getLocation('UTC'));
+      tz.setLocalLocation(tz.UTC);
     }
   }
 
