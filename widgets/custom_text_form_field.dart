@@ -67,6 +67,7 @@ class CustomTextFormField extends StatefulWidget {
     this.autofillHints,
     this.cursorColor,
     this.dismissOutSideTap = true,
+    this.inputFormatters,
   });
 
   final Color borderColor;
@@ -153,6 +154,7 @@ class CustomTextFormField extends StatefulWidget {
   final Iterable<String>? autofillHints;
   final Color? cursorColor;
   final bool dismissOutSideTap;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   State<CustomTextFormField> createState() => _CustomTextFormFieldState();
@@ -251,6 +253,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                       if (widget.validateText.toLowerCase().contains('phone') ||
                           widget.keyboardType == TextInputType.number)
                         FilteringTextInputFormatter.digitsOnly,
+                      ...?widget.inputFormatters,
                     ],
                     textDirection: widget.isLtr ? TextDirection.ltr : null,
                     keyboardType: widget.keyboardType,
@@ -310,12 +313,12 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                                             ? Icons.visibility
                                             : Icons.visibility_off,
                                         color: !_isObscure
-                                            ? Theme.of(
-                                                context,
-                                              ).colorScheme.primary
-                                            : Theme.of(
-                                                context,
-                                              ).colorScheme.onSurfaceVariant,
+                                            ? Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                            : Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
                                       ),
                                       onPressed: () => setState(
                                         () => _isObscure = !_isObscure,
@@ -330,9 +333,9 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                                       size: widget.suffixIconSize,
                                       color:
                                           widget.suffixIconColor ??
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onSurfaceVariant,
+                                          Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
                                     ),
                                   )
                                 : null),
@@ -346,9 +349,9 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
                                       child: IconButton(
                                         icon: Icon(
                                           widget.prefixIcon,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onSurfaceVariant,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
                                         ),
                                         onPressed: widget.prefixTap,
                                       ),

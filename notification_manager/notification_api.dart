@@ -7,7 +7,7 @@ import 'package:idara_esign/core/services/logger_service.dart';
 
 class NotificationApi {
   static FirebaseMessaging messaging = FirebaseMessaging.instance;
-  static bool _isInitialized = false;
+  static Future<void>? _initialization;
 
   static Future<String?> getDeviceFCMToken() async {
     try {
@@ -95,9 +95,38 @@ class NotificationApi {
 
   /// How to use it?
   /// in main()
-  // await NotificationApi.init();
+  // await _initNotifications();
+  // Future<void> _initNotifications() async {
+  //   try {
+  //     await NotificationApi.init();
+  //   } on Object catch (error, stack) {
+  //     AppLog.w(
+  //       '[main] Notification setup failed; continuing without it — $error',
+  //     );
+  //     await CrashReporter.record(
+  //       error,
+  //       stack,
+  //       reason: 'NotificationApi.init failed during startup',
+  //     );
+  //   }
+  // }
 
-  static Future<void> init() async {
+  /// Idempotent, and safe to call again after a failure.
+  ///
+  /// A plain `bool` set *before* the work poisons the guard: if setup throws
+  /// half-way the flag still reads "done", so every later call returns early
+  /// while notifications are silently dead for the rest of the process. Holding
+  /// the in-flight [Future] instead gives three states — not started, in
+  /// progress, done — so concurrent callers share one attempt and a failed
+  /// attempt is forgotten and can be retried.
+  static Future<void> init() {
+    return _initialization ??= _init().onError<Object>((error, stack) {
+      _initialization = null;
+      Error.throwWithStackTrace(error, stack);
+    });
+  }
+
+  static Future<void> _init() async {
     if (_isInitialized) return;
     _isInitialized = true;
     // Web has its own pipeline: no flutter_local_notifications, no Platform.is*,
