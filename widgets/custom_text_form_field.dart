@@ -461,3 +461,42 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
     );
   }
 }
+
+
+
+
+/// Restricts a field to a non-negative decimal number.
+///
+/// Needed because `keyboardType` is only a hint — on desktop and web a physical
+/// keyboard ignores it entirely — so a money field must be filtered, not just
+/// validated on submit. [FilteringTextInputFormatter.digitsOnly] cannot be used
+/// for prices because it strips the decimal separator, and
+/// `FilteringTextInputFormatter.allow` works per character, so it would happily
+/// accept `1.2.3`. This checks the whole resulting string instead and rejects
+/// the keystroke that would break it.
+class DecimalTextInputFormatter extends TextInputFormatter {
+  DecimalTextInputFormatter({this.decimalRange = 2})
+    : assert(decimalRange >= 0, 'decimalRange must not be negative');
+
+  /// Digits allowed after the separator. 0 means integers only.
+  final int decimalRange;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text;
+
+    // Let the field be cleared.
+    if (text.isEmpty) return newValue;
+
+    final pattern = decimalRange == 0
+        ? r'^\d+$'
+        : '^\\d*\\.?\\d{0,$decimalRange}\$';
+
+    // `\d` is ASCII-only here, so Arabic-Indic digits are rejected too — they
+    // would not survive double.tryParse either.
+    return RegExp(pattern).hasMatch(text) ? newValue : oldValue;
+  }
+}
