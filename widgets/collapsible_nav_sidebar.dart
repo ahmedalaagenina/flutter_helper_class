@@ -119,13 +119,6 @@ class _CollapsibleNavSidebarState extends State<CollapsibleNavSidebar> {
   String? _expandedKey;
   int? _lastSyncedIndex;
 
-  @override
-  void didUpdateWidget(CollapsibleNavSidebar old) {
-    super.didUpdateWidget(old);
-    // Auto-expand the group that contains the newly active index.
-    _syncExpandedGroup();
-  }
-
   void _syncExpandedGroup() {
     if (_lastSyncedIndex == widget.selectedIndex) return;
     _lastSyncedIndex = widget.selectedIndex;
@@ -137,9 +130,7 @@ class _CollapsibleNavSidebarState extends State<CollapsibleNavSidebar> {
         );
         if (match) {
           // Only expand; never collapse an already-open group on navigation.
-          if (_expandedKey != entry.key) {
-            setState(() => _expandedKey = entry.key);
-          }
+          _expandedKey = entry.key;
           return;
         }
       }
@@ -213,21 +204,21 @@ class _CollapsibleNavSidebarState extends State<CollapsibleNavSidebar> {
   Widget _buildEntry(NavEntry entry, Color active, ColorScheme cs) {
     return switch (entry) {
       NavItem() => _NavItemTile(
-          item: entry,
-          active: entry.index == widget.selectedIndex,
-          activeColor: active,
-          cs: cs,
-          onTap: () => widget.onIndexSelected(entry.index),
-        ),
+        item: entry,
+        active: entry.index == widget.selectedIndex,
+        activeColor: active,
+        cs: cs,
+        onTap: () => widget.onIndexSelected(entry.index),
+      ),
       NavGroup() => _NavGroupTile(
-          group: entry,
-          expanded: _expandedKey == entry.key,
-          selectedIndex: widget.selectedIndex,
-          activeColor: active,
-          cs: cs,
-          onHeaderTap: () => _toggleGroup(entry.key),
-          onItemTap: widget.onIndexSelected,
-        ),
+        group: entry,
+        expanded: _expandedKey == entry.key,
+        selectedIndex: widget.selectedIndex,
+        activeColor: active,
+        cs: cs,
+        onHeaderTap: () => _toggleGroup(entry.key),
+        onItemTap: widget.onIndexSelected,
+      ),
     };
   }
 }
@@ -254,8 +245,12 @@ class _NavItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveActiveColor = item.isDanger ? Colors.red : activeColor;
-    final iconColor = item.isDanger ? Colors.red : (active ? effectiveActiveColor : cs.onSurfaceVariant);
-    final textColor = item.isDanger ? Colors.red : (active ? effectiveActiveColor : cs.onSurface);
+    final iconColor = item.isDanger
+        ? Colors.red
+        : (active ? effectiveActiveColor : cs.onSurfaceVariant);
+    final textColor = item.isDanger
+        ? Colors.red
+        : (active ? effectiveActiveColor : cs.onSurface);
 
     return Material(
       color: Colors.transparent,
@@ -274,11 +269,7 @@ class _NavItemTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
-                item.icon,
-                size: 20,
-                color: iconColor,
-              ),
+              Icon(item.icon, size: 20, color: iconColor),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -293,7 +284,10 @@ class _NavItemTile extends StatelessWidget {
               ),
               if (item.badgeCount != null && item.badgeCount! > 0)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.red,
                     borderRadius: BorderRadius.circular(10),
@@ -390,12 +384,11 @@ class _NavGroupTile extends StatelessWidget {
                         group.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.titleMedium?.copyWith(
-                          color: headerActive ? activeColor : cs.onSurface,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: headerActive ? activeColor : cs.onSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
                       ),
                     ),
                     // Active-child dot when group is collapsed
@@ -546,8 +539,12 @@ class _NavChildTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveActiveColor = item.isDanger ? Colors.red : activeColor;
-    final iconColor = item.isDanger ? Colors.red : (active ? effectiveActiveColor : cs.onSurfaceVariant);
-    final textColor = item.isDanger ? Colors.red : (active ? effectiveActiveColor : cs.onSurface);
+    final iconColor = item.isDanger
+        ? Colors.red
+        : (active ? effectiveActiveColor : cs.onSurfaceVariant);
+    final textColor = item.isDanger
+        ? Colors.red
+        : (active ? effectiveActiveColor : cs.onSurface);
 
     return Material(
       color: Colors.transparent,
@@ -565,11 +562,7 @@ class _NavChildTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
-                item.icon,
-                size: 18,
-                color: iconColor,
-              ),
+              Icon(item.icon, size: 18, color: iconColor),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -584,7 +577,10 @@ class _NavChildTile extends StatelessWidget {
               ),
               if (item.badgeCount != null && item.badgeCount! > 0)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   margin: const EdgeInsetsDirectional.only(end: 4),
                   decoration: BoxDecoration(
                     color: Colors.red,

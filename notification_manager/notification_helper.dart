@@ -134,34 +134,104 @@ class NotificationHelper {
 
   /// Show an immediate notification
   Future<void> showNotification({required RemoteMessage message}) async {
-    var notificationDetails = await _notificationDetails(message);
+    final content = NotificationContent.fromRemoteMessage(message);
+    final notificationDetails = await _notificationDetails(content);
     flutterLocalNotificationsPlugin.show(
       id: message.notification!.hashCode,
-      title: message.notification!.title,
-      body: message.notification!.body,
+      title: content.title,
+      body: content.body,
       notificationDetails: notificationDetails,
-      payload: jsonEncode(
-        message.data,
-      ), // value that pass from notification to app
+      payload: jsonEncode(content.data),
     );
   }
 
-  /// Schedule a notification for a specific date and time
+  /// Schedules a delivered push for later.
+  ///
+  /// Pass [id] whenever the notification has to be cancelled or rescheduled.
+  /// The default — hashing the message — cannot serve that: two messages with
+  /// the same wording produce the same id and overwrite each other, and
+  /// cancelling one would mean rebuilding the exact same message to recover
+  /// its hash.
   Future<void> scheduleNotification({
     required RemoteMessage message,
     required DateTime scheduledDate,
-  }) async {
-    var notificationDetails = await _notificationDetails(message);
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      id: message.notification!.hashCode,
-      title: message.notification!.title,
-      body: message.notification!.body,
-      scheduledDate: tz.TZDateTime.from(scheduledDate, tz.local),
-      notificationDetails: notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      payload: jsonEncode(message.data),
+    int? id,
+  }) {
+    return _schedule(
+      content: NotificationContent.fromRemoteMessage(message),
+      scheduledDate: scheduledDate,
+      id: id ?? message.notification!.hashCode,
     );
   }
+
+  /// Schedules a reminder the user typed, which no push ever carried.
+  ///
+  /// [id] is required, not derived: it is the only handle for cancelling or
+  /// rescheduling, which a reminder needs the moment the user edits or deletes
+  /// it. Re-using an id replaces the pending notification rather than adding a
+  /// second, which is what makes an edited time a single call.
+  Future<void> scheduleLocalNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    Map<String, dynamic>? payload,
+  }) {
+    return _schedule(
+      content: NotificationContent(
+        title: title,
+        body: body,
+        data: payload ?? const <String, dynamic>{},
+      ),
+      scheduledDate: scheduledDate,
+      id: id,
+    );
+  }
+
+  /// The one scheduling implementation. Both entry points above differ only in
+  /// where their content came from, so everything that follows — the past-date
+  /// guard, the timezone conversion, the Android mode — is written once.
+  Future<void> _schedule({
+    required NotificationContent content,
+    required DateTime scheduledDate,
+    required int id,
+  }) async {
+    // A past date either throws or fires instantly, neither of which is a
+    // schedule. Callers filter too, but time passes between filtering and here.
+    if (!scheduledDate.isAfter(DateTime.now())) {
+      AppLog.w(
+        '[Notifications] skipped past-dated schedule #$id at $scheduledDate',
+      );
+      return;
+    }
+
+    final notificationDetails = await _notificationDetails(content);
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      id: id,
+      title: content.title,
+      body: content.body,
+      // TZDateTime.from converts by instant, so it lands on the right moment
+      // whether handed a local or a UTC value. tz.local is set from the
+      // device's real zone in _configureLocalTimeZone; without that call it
+      // would be UTC and everything would fire hours off.
+      scheduledDate: tz.TZDateTime.from(scheduledDate, tz.local),
+      notificationDetails: notificationDetails,
+      // Inexact deliberately: exact alarms need SCHEDULE_EXACT_ALARM on
+      // Android 12+, a restricted permission Google Play reviews and the user
+      // can revoke — and with minSdk 26 those devices are in range, so the
+      // exact mode this used to request would have thrown on them.
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      payload: jsonEncode(content.data),
+    );
+
+    AppLog.d('[Notifications] scheduled #$id for $scheduledDate');
+  }
+
+  /// Everything currently pending, so a caller can reconcile its own ids
+  /// against what the system actually holds.
+  Future<List<PendingNotificationRequest>> pendingNotifications() =>
+      flutterLocalNotificationsPlugin.pendingNotificationRequests();
 
   /// Show a notification with progress
   Future<void> showProgressNotification({
@@ -506,4 +576,29 @@ class NotificationInfo {
   final String? payload;
 
   NotificationInfo({required this.title, required this.body, this.payload});
+}
+
+class NotificationContent {
+  const NotificationContent({
+    this.title,
+    this.body,
+    this.imageUrl,
+    this.data = const <String, dynamic>{},
+  });
+
+  /// Maps a delivered push. The only place that knows the Firebase shape.
+  factory NotificationContent.fromRemoteMessage(RemoteMessage message) {
+    return NotificationContent(
+      title: message.notification?.title,
+      body: message.notification?.body,
+      imageUrl: message.notification?.android?.imageUrl,
+      data: message.data,
+    );
+  }
+
+  final String? title;
+  final String? body;
+  final String? imageUrl;
+
+  final Map<String, dynamic> data;
 }

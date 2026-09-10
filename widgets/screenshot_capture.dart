@@ -45,7 +45,12 @@ class ScreenshotCaptureController {
   Future<Uint8List?> capture({double? pixelRatio}) async {
     try {
       return await _engine.capture(pixelRatio: pixelRatio ?? this.pixelRatio);
-    } catch (_) {
+    } catch (error, stack) {
+      if (kDebugMode) {
+        debugPrint(
+          'ScreenshotCaptureController.capture failed: $error\n$stack',
+        );
+      }
       return null;
     }
   }
@@ -133,7 +138,15 @@ class ScreenshotCapture extends StatelessWidget {
 /// Exposed separately so callers that already hold image bytes (e.g. from a
 /// `RepaintBoundary` or the network) can share/save without a controller.
 abstract final class ScreenshotFiles {
-  /// Writes [bytes] to a temp PNG and opens the native share sheet.
+  /// Shares [bytes] as a PNG through the platform share sheet.
+  ///
+  /// Native platforms need a real file on disk — Android/iOS share intents pass
+  /// a file URI, not bytes — so the PNG goes to the temp directory first. Web
+  /// has neither: `path_provider` ships no web implementation of
+  /// [getTemporaryDirectory] and `dart:io`'s [File] throws there, so the bytes
+  /// are handed to share_plus in memory instead. It routes them through the Web
+  /// Share API and, on browsers that cannot share files (desktop Safari and
+  /// Firefox), falls back to downloading the PNG.
   static Future<CaptureResult> shareBytes(
     Uint8List bytes, {
     String fileName = 'screenshot',
@@ -141,16 +154,22 @@ abstract final class ScreenshotFiles {
     String? subject,
     Rect? sharePositionOrigin,
   }) async {
+    final name = _ensurePng(fileName);
     try {
-      final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/${_ensurePng(fileName)}';
-      await File(path).writeAsBytes(bytes, flush: true);
+      final file = kIsWeb
+          ? XFile.fromData(bytes, mimeType: 'image/png', name: name)
+          : XFile(await _writeTempPng(bytes, name), mimeType: 'image/png');
 
-      final result = await Share.shareXFiles(
-        [XFile(path, mimeType: 'image/png')],
-        text: text,
-        subject: subject,
-        sharePositionOrigin: sharePositionOrigin,
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          files: [file],
+          // XFile.fromData carries no path, so the name has to be passed
+          // separately or the shared/downloaded file ends up unnamed.
+          fileNameOverrides: kIsWeb ? [name] : null,
+          text: text,
+          subject: subject,
+          sharePositionOrigin: sharePositionOrigin,
+        ),
       );
 
       return switch (result.status) {
@@ -158,9 +177,21 @@ abstract final class ScreenshotFiles {
         ShareResultStatus.dismissed => CaptureResult.cancelled,
         ShareResultStatus.unavailable => CaptureResult.failure,
       };
-    } catch (_) {
+    } catch (error, stack) {
+      // Callers only surface a generic message, so log the cause — swallowing
+      // it silently is what made the web failure here so hard to place.
+      if (kDebugMode) {
+        debugPrint('ScreenshotFiles.shareBytes failed: $error\n$stack');
+      }
       return CaptureResult.failure;
     }
+  }
+
+  static Future<String> _writeTempPng(Uint8List bytes, String name) async {
+    final dir = await getTemporaryDirectory();
+    final path = '${dir.path}/$name';
+    await File(path).writeAsBytes(bytes, flush: true);
+    return path;
   }
 
   /// Saves [bytes] to a user-chosen location as a PNG.
@@ -182,7 +213,10 @@ abstract final class ScreenshotFiles {
       // returns null even on success (the download is triggered by bytes).
       if (output == null && !kIsWeb) return CaptureResult.cancelled;
       return CaptureResult.success;
-    } catch (_) {
+    } catch (error, stack) {
+      if (kDebugMode) {
+        debugPrint('ScreenshotFiles.saveBytes failed: $error\n$stack');
+      }
       return CaptureResult.failure;
     }
   }
