@@ -105,10 +105,16 @@ void _onAuthChanged(AuthState state) {
 ### Interop with `file_picker`
 
 The service is intentionally **not** coupled to `file_picker`. If your downstream
-code expects a `PlatformFile`, convert at the boundary:
+code expects a `PlatformFile`, convert at the boundary with `AppPlatformFile`
+(`file_picker` 12.2 made `PlatformFile` itself abstract, so it can't be built
+directly):
 
 ```dart
-final platformFile = PlatformFile(path: file.path, name: file.name, size: file.size);
+final platformFile = AppPlatformFile(
+  path: file.path,
+  name: file.name,
+  size: file.size,
+);
 ```
 
 ---

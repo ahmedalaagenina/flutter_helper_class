@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:idara_esign/config/routes/route_names.dart';
+import 'package:idara_esign/core/models/app_platform_file.dart';
 import 'package:idara_esign/core/services/shared_media/shared_media_service.dart';
 import 'package:idara_esign/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:idara_esign/features/document/presentation/pages/image_to_document_page.dart';
@@ -13,8 +14,17 @@ import 'package:idara_esign/generated/l10n.dart';
 ///
 /// While `SharedMediaService` is fully reusable across any app, this class
 /// contains the logic specific to iDara eSign (checking `AuthBloc`, navigating
-/// to specific `Routes`, and showing localized dialogs). 
+/// to specific `Routes`, and showing localized dialogs).
 /// Extracting this keeps `app.dart` clean.
+///    how to use?
+// _sharedFileService = getIt<SharedMediaService>();
+// _sharedMediaHandler = AppSharedMediaHandler(
+//   sharedFileService: _sharedFileService,
+//   authBloc: _authBloc,
+//   navigatorKey: rootNavigatorKey,
+// );
+// _sharedMediaHandler.init();
+
 class AppSharedMediaHandler {
   AppSharedMediaHandler({
     required this.sharedFileService,
@@ -89,7 +99,7 @@ class AppSharedMediaHandler {
   void _navigateToCreateWithFile(SharedFile file) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
-    final platformFile = PlatformFile(
+    final platformFile = AppPlatformFile(
       path: file.path,
       name: file.name,
       size: file.size,

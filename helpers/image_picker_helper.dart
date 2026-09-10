@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
 /*
 ═══════════════════════════════════════════════════════════════════════
 IMAGE PICKER HELPER (Clean Architecture Version)
@@ -262,18 +263,14 @@ class ImagePickerHelper {
   static Future<XFile?> _pickWebSingle({
     required ImagePickOptions options,
   }) async {
-    final picked = await FilePicker.pickFiles(
-      allowMultiple: false,
-      withData: true,
+    final f = await FilePicker.pickFile(
       type: _filePickerType(options),
       allowedExtensions: _normalizedFilePickerExtensions(options),
     );
+    if (f == null) return null;
 
-    if (picked == null || picked.files.isEmpty) return null;
-
-    final f = picked.files.single;
-    final bytes = f.bytes;
-    if (bytes == null) return null;
+    final bytes = await f.readAsBytes();
+    if (bytes.isEmpty) return null;
 
     final mimeType = lookupMimeType(f.name);
     return XFile.fromData(bytes, name: f.name, mimeType: mimeType);
@@ -283,18 +280,15 @@ class ImagePickerHelper {
     required ImagePickOptions options,
   }) async {
     final picked = await FilePicker.pickFiles(
-      allowMultiple: true,
-      withData: true,
       type: _filePickerType(options),
       allowedExtensions: _normalizedFilePickerExtensions(options),
     );
-
-    if (picked == null || picked.files.isEmpty) return [];
+    if (picked.isEmpty) return [];
 
     final out = <XFile>[];
-    for (final f in picked.files) {
-      final bytes = f.bytes;
-      if (bytes == null) continue;
+    for (final f in picked) {
+      final bytes = await f.readAsBytes();
+      if (bytes.isEmpty) continue;
       final mimeType = lookupMimeType(f.name);
       out.add(XFile.fromData(bytes, name: f.name, mimeType: mimeType));
     }

@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:idara_esign/config/theme/theme_extensions.dart';
 import 'package:idara_esign/core/helpers/image_picker_helper.dart';
 import 'package:idara_esign/core/helpers/pdf_view_helpers.dart';
+import 'package:idara_esign/core/models/app_platform_file.dart';
 import 'package:idara_esign/core/responsive/responsive.dart';
 import 'package:idara_esign/core/widgets/widgets.dart';
 import 'package:idara_esign/features/document/presentation/utils/images_to_pdf.dart';
@@ -15,7 +15,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 class ImageToDocumentPage extends StatefulWidget {
-  const ImageToDocumentPage({super.key});
+  const ImageToDocumentPage({super.key, this.initialImagePaths});
+
+  /// Optional list of file paths to pre-load (e.g. from a share/open-with
+  /// intent). The images are compressed using the same quality pipeline as
+  /// gallery picks.
+  final List<String>? initialImagePaths;
 
   @override
   State<ImageToDocumentPage> createState() => _ImageToDocumentPageState();
@@ -29,7 +34,10 @@ class _PickedImage {
 
 class _ImageToDocumentPageState extends State<ImageToDocumentPage> {
   final List<_PickedImage> _images = [];
-  bool _busy = false;
+  bool _creating = false;
+  bool _importing = false;
+
+  bool get _blocked => _creating || _importing;
   static const _pickOptions = ImagePickOptions(
     allowedExtensions: {'jpg', 'jpeg', 'png', 'heic', 'heif', 'webp'},
     maxWidth: 1240,
@@ -42,33 +50,100 @@ class _ImageToDocumentPageState extends State<ImageToDocumentPage> {
     forceProcessEvenIfUnderLimit: true,
   );
 
-  Future<void> _takePhoto() async {
-    if (_busy) return;
-    final outcome = await ImagePickerHelper.pickSingle(
-      source: ImageSource.camera,
-      options: _pickOptions,
-    );
-    final picked = outcome.result?.file;
-    if (picked == null) return;
-    final bytes = await picked.readAsBytes();
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialImages();
+  }
+
+  /// Load images that were passed via share/open-with intent.
+  Future<void> _loadInitialImages() async {
+    final paths = widget.initialImagePaths;
+    if (paths == null || paths.isEmpty) return;
+
+    setState(() => _importing = true);
+    final added = <_PickedImage>[];
+    var skipped = 0;
+    try {
+      for (final path in paths) {
+        try {
+          if (!await File(path).exists()) {
+            skipped++;
+            continue;
+          }
+          final result = await ImagePickerHelper.processExistingFile(
+            XFile(path),
+            options: _pickOptions,
+          );
+          added.add(
+            _PickedImage(
+              bytes: await result.file.readAsBytes(),
+              name: path.split(Platform.pathSeparator).last,
+            ),
+          );
+        } catch (_) {
+          // Unreadable, unsupported, or uncompressible file.
+          skipped++;
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _importing = false;
+          _images.addAll(added);
+        });
+      }
+    }
     if (!mounted) return;
-    setState(() => _images.add(_PickedImage(bytes: bytes, name: picked.name)));
+    if (skipped > 0) {
+      AppSnackBars.warning(S.of(context).someImagesCouldNotBeAdded);
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    if (_blocked) return;
+    // The importing state covers the whole pick + compress window — the
+    // compression happens inside the helper after the camera UI closes, and
+    // without this flag the page looks frozen until it completes.
+    setState(() => _importing = true);
+    try {
+      final outcome = await ImagePickerHelper.pickSingle(
+        source: ImageSource.camera,
+        options: _pickOptions,
+      );
+      final picked = outcome.result?.file;
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
+      _images.add(_PickedImage(bytes: bytes, name: picked.name));
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
   }
 
   Future<void> _pickFromGallery() async {
-    if (_busy) return;
-    final outcome = await ImagePickerHelper.pickMultiple(options: _pickOptions);
-    final results = outcome.results;
-    if (results == null || results.isEmpty) return;
-
-    final added = <_PickedImage>[];
-    for (final r in results) {
-      added.add(
-        _PickedImage(bytes: await r.file.readAsBytes(), name: r.file.name),
+    if (_blocked) return;
+    // See _takePhoto: every selected image is compressed inside this await
+    // (seconds for a large multi-select), so show the importing state.
+    setState(() => _importing = true);
+    try {
+      final outcome = await ImagePickerHelper.pickMultiple(
+        options: _pickOptions,
       );
+      final results = outcome.results;
+      if (results == null || results.isEmpty) return;
+
+      final added = <_PickedImage>[];
+      for (final r in results) {
+        added.add(
+          _PickedImage(bytes: await r.file.readAsBytes(), name: r.file.name),
+        );
+      }
+      if (!mounted) return;
+      _images.addAll(added);
+    } finally {
+      if (mounted) setState(() => _importing = false);
     }
-    if (!mounted) return;
-    setState(() => _images.addAll(added));
   }
 
   void _removeAt(int index) {
@@ -84,21 +159,19 @@ class _ImageToDocumentPageState extends State<ImageToDocumentPage> {
   }
 
   Future<void> _createPdf() async {
-    if (_busy || _images.isEmpty) return;
-    setState(() => _busy = true);
+    if (_blocked || _images.isEmpty) return;
+    setState(() => _creating = true);
     try {
       final pdfBytes = await buildPdfFromImages(
         _images.map((e) => e.bytes).toList(),
       );
       if (!mounted) return;
-      setState(() => _busy = false);
+      setState(() => _creating = false);
 
       // Let the user preview the assembled PDF before committing it to the
       // create-document flow.
       final confirmed = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(
-          builder: (_) => _PdfPreviewPage(pdfBytes: pdfBytes),
-        ),
+        MaterialPageRoute(builder: (_) => _PdfPreviewPage(pdfBytes: pdfBytes)),
       );
       if (confirmed != true || !mounted) return;
 
@@ -109,7 +182,7 @@ class _ImageToDocumentPageState extends State<ImageToDocumentPage> {
 
       if (!mounted) return;
       Navigator.of(context).pop(
-        PlatformFile(
+        AppPlatformFile(
           path: filePath,
           name: fileName,
           size: pdfBytes.lengthInBytes,
@@ -118,7 +191,7 @@ class _ImageToDocumentPageState extends State<ImageToDocumentPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _busy = false);
+      setState(() => _creating = false);
       AppSnackBars.error(S.of(context).failedToCreatePdf);
     }
   }
@@ -139,21 +212,32 @@ class _ImageToDocumentPageState extends State<ImageToDocumentPage> {
               ),
               Expanded(
                 child: _images.isEmpty
-                    ? _EmptyState(
-                        onTakePhoto: _takePhoto,
-                        onPickGallery: _pickFromGallery,
-                      )
-                    : _ImageList(
-                        images: _images,
-                        busy: _busy,
-                        onRemove: _removeAt,
-                        onReorder: _reorder,
+                    ? (_importing
+                          ? const Center(child: CircularProgressIndicator())
+                          : _EmptyState(
+                              onTakePhoto: _takePhoto,
+                              onPickGallery: _pickFromGallery,
+                            ))
+                    : Column(
+                        children: [
+                          if (_importing)
+                            const LinearProgressIndicator(minHeight: 2),
+                          Expanded(
+                            child: _ImageList(
+                              images: _images,
+                              busy: _blocked,
+                              onRemove: _removeAt,
+                              onReorder: _reorder,
+                            ),
+                          ),
+                        ],
                       ),
               ),
               if (_images.isNotEmpty)
                 _BottomBar(
                   count: _images.length,
-                  busy: _busy,
+                  busy: _blocked,
+                  creating: _creating,
                   onAddMore: _showAddSourceSheet,
                   onCreate: _createPdf,
                 ),
@@ -165,7 +249,7 @@ class _ImageToDocumentPageState extends State<ImageToDocumentPage> {
   }
 
   Future<void> _showAddSourceSheet() async {
-    if (_busy) return;
+    if (_blocked) return;
     // No camera on web — go straight to the gallery picker.
     if (kIsWeb) {
       _pickFromGallery();
@@ -231,7 +315,7 @@ class _EmptyState extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: primary.withOpacity(0.1),
+                color: primary.withValues(alpha: 0.1),
               ),
               child: Icon(Icons.image_outlined, color: primary, size: 40),
             ),
@@ -281,7 +365,10 @@ class _EmptyState extends StatelessWidget {
               iconColor: kIsWeb ? Colors.white : primary,
               border: kIsWeb
                   ? null
-                  : Border.all(color: primary.withOpacity(0.5), width: 1.2),
+                  : Border.all(
+                      color: primary.withValues(alpha: 0.5),
+                      width: 1.2,
+                    ),
               radius: 24,
             ),
           ],
@@ -347,7 +434,7 @@ class _ImageTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.colors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: primary.withOpacity(0.18)),
+        border: Border.all(color: primary.withValues(alpha: 0.18)),
       ),
       child: Row(
         children: [
@@ -358,6 +445,7 @@ class _ImageTile extends StatelessWidget {
               width: 56,
               height: 56,
               fit: BoxFit.cover,
+              cacheWidth: 168,
             ),
           ),
           const SizedBox(width: 12),
@@ -367,7 +455,7 @@ class _ImageTile extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: primary.withOpacity(0.12),
+              color: primary.withValues(alpha: 0.12),
             ),
             child: Text(
               '${index + 1}',
@@ -407,12 +495,14 @@ class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.count,
     required this.busy,
+    required this.creating,
     required this.onAddMore,
     required this.onCreate,
   });
 
   final int count;
   final bool busy;
+  final bool creating;
   final VoidCallback onAddMore;
   final VoidCallback onCreate;
 
@@ -429,7 +519,7 @@ class _BottomBar extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: context.colors.surface,
-        border: Border(top: BorderSide(color: primary.withOpacity(0.12))),
+        border: Border(top: BorderSide(color: primary.withValues(alpha: 0.12))),
       ),
       child: Row(
         mainAxisAlignment: context.isBiggerThanMobile
@@ -446,15 +536,20 @@ class _BottomBar extends StatelessWidget {
             backgroundColor: Colors.transparent,
             titleColor: primary,
             iconColor: primary,
-            border: Border.all(color: primary.withOpacity(0.5), width: 1.2),
+            border: Border.all(
+              color: primary.withValues(alpha: 0.5),
+              width: 1.2,
+            ),
             radius: 24,
           ),
           const SizedBox(width: 12),
           // Full-width create button on mobile; compact (intrinsic) on web.
           if (context.isBiggerThanMobile)
             AppButtonLeadingIcon(
-              title: busy ? s.creatingPdf : s.generatePdf,
-              icon: busy ? Icons.hourglass_top_rounded : Icons.picture_as_pdf,
+              title: creating ? s.creatingPdf : s.generatePdf,
+              icon: creating
+                  ? Icons.hourglass_top_rounded
+                  : Icons.picture_as_pdf,
               iconSize: 18,
               titleSize: 15,
               height: 50,
@@ -467,8 +562,10 @@ class _BottomBar extends StatelessWidget {
           else
             Expanded(
               child: AppButtonLeadingIcon(
-                title: busy ? s.creatingPdf : s.generatePdf,
-                icon: busy ? Icons.hourglass_top_rounded : Icons.picture_as_pdf,
+                title: creating ? s.creatingPdf : s.generatePdf,
+                icon: creating
+                    ? Icons.hourglass_top_rounded
+                    : Icons.picture_as_pdf,
                 iconSize: 18,
                 titleSize: 15,
                 height: 50,
@@ -510,8 +607,7 @@ class _PdfPreviewPage extends StatelessWidget {
                 child: PdfViewer.data(
                   pdfBytes,
                   sourceName: 'preview_${identityHashCode(pdfBytes)}',
-                  params: PdfViewerParams(
-                    margin: 8,
+                  params: const PdfViewerParams(
                     onViewerReady: applyPdfFitToPage,
                   ),
                 ),
@@ -526,7 +622,7 @@ class _PdfPreviewPage extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: context.colors.surface,
                   border: Border(
-                    top: BorderSide(color: primary.withOpacity(0.12)),
+                    top: BorderSide(color: primary.withValues(alpha: 0.12)),
                   ),
                 ),
                 child: AppButtonLeadingIcon(

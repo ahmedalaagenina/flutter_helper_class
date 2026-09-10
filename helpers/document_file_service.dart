@@ -31,8 +31,8 @@ class DocumentFileService {
       // Share the file using system share dialog
       final result = await Share.shareXFiles(
         [XFile(filePath)],
-        subject: fileName.replaceAll('.pdf', ''),
-        text: s.sharingDocumentText(fileName.replaceAll('.pdf', '')),
+        subject: fileName,
+        text: fileName,
       );
 
       if (context.mounted) {
@@ -58,9 +58,11 @@ class DocumentFileService {
   }) async {
     final s = S.of(context);
     try {
-      String? outputFile = await FilePicker.saveFile(
+      final Uri? outputFile = await FilePicker.saveFile(
         dialogTitle: s.chooseSaveLocation,
-        fileName: "$fileName.pdf",
+        fileName: fileName.toLowerCase().endsWith('.pdf')
+            ? fileName
+            : '$fileName.pdf',
         bytes: pdfBytes,
         allowedExtensions: ['pdf'],
       );
@@ -78,16 +80,9 @@ class DocumentFileService {
   }
 
   Future<PlatformFile?> pickDocumentFile() async {
-    final result = await FilePicker.pickFiles(
+    return FilePicker.pickFile(
       type: FileType.custom,
-      allowMultiple: false,
-      withData: true,
       allowedExtensions: const ['pdf'],
     );
-
-    if (result == null || result.files.isEmpty) return null;
-
-    final file = result.files.single;
-    return file;
   }
 }
