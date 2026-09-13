@@ -17,6 +17,26 @@ enum ShorebirdUpdateMode {
   askBeforeDownload,
 }
 
+/// Behaviour derived from [ShorebirdUpdateMode].
+///
+/// Both getters switch exhaustively, so adding a mode is a compile error
+/// here rather than a silent fall-through into another mode's behaviour.
+extension ShorebirdUpdateModeBehavior on ShorebirdUpdateMode {
+  /// Whether a patch downloads without waiting for the user to confirm.
+  bool get downloadsWithoutAsking => switch (this) {
+    ShorebirdUpdateMode.silent => true,
+    ShorebirdUpdateMode.notifyWhenReady => true,
+    ShorebirdUpdateMode.askBeforeDownload => false,
+  };
+
+  /// Whether this mode shows any update UI at all.
+  bool get showsPrompts => switch (this) {
+    ShorebirdUpdateMode.silent => false,
+    ShorebirdUpdateMode.notifyWhenReady => true,
+    ShorebirdUpdateMode.askBeforeDownload => true,
+  };
+}
+
 /// How every prompt is rendered when the mode is not
 /// [ShorebirdUpdateMode.silent].
 ///

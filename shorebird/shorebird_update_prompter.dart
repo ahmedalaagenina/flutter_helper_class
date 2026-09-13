@@ -19,6 +19,7 @@ class ShorebirdUpdatePrompter {
     required this.strings,
     this.stringsBuilder,
     this.logger,
+    this.onPromptDiscarded,
   });
 
   final GlobalKey<NavigatorState>? navigatorKey;
@@ -31,6 +32,10 @@ class ShorebirdUpdatePrompter {
   final ShorebirdUpdateStrings Function(BuildContext context)? stringsBuilder;
 
   final void Function(String message)? logger;
+
+  /// Invoked when a dialog closes without the user choosing anything, which
+  /// happens when navigation replaces the route stack underneath it.
+  final VoidCallback? onPromptDiscarded;
 
   BuildContext? get _context => navigatorKey?.currentContext;
 
@@ -52,18 +57,21 @@ class ShorebirdUpdatePrompter {
   }
 
   /// Offers the user a choice to start the download.
-  void askToDownload({
+  /// Returns `false` when there was no context to render into, so the caller
+  /// can retry instead of dropping the update silently.
+  bool askToDownload({
     required ShorebirdPromptStyle style,
     required VoidCallback onDownload,
   }) {
     final text = _strings;
-    if (text == null) return;
+    if (text == null) return false;
     switch (style) {
       case ShorebirdPromptStyle.banner:
         _askToDownloadBanner(text, onDownload);
       case ShorebirdPromptStyle.dialog:
         _askToDownloadDialog(text, onDownload);
     }
+    return true;
   }
 
   /// Indeterminate progress banner shown while the patch downloads.
@@ -89,18 +97,20 @@ class ShorebirdUpdatePrompter {
   ///
   /// [onRestart] is optional: without it the prompt is purely informational,
   /// because the patch applies on the next cold start either way.
-  void showReady({
+  /// Returns `false` when there was no context to render into.
+  bool showReady({
     required ShorebirdPromptStyle style,
     VoidCallback? onRestart,
   }) {
     final text = _strings;
-    if (text == null) return;
+    if (text == null) return false;
     switch (style) {
       case ShorebirdPromptStyle.banner:
         _showReadyBanner(text, onRestart);
       case ShorebirdPromptStyle.dialog:
         _showReadyDialog(text, onRestart);
     }
+    return true;
   }
 
   void showError(String message) {
@@ -144,7 +154,7 @@ class ShorebirdUpdatePrompter {
     final context = _context;
     if (context == null) return;
     unawaited(
-      showDialog<void>(
+      showDialog<bool>(
         context: context,
         builder: (dialogContext) {
           return AlertDialog(
@@ -152,12 +162,12 @@ class ShorebirdUpdatePrompter {
             content: Text(text.updateAvailable),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
+                onPressed: () => Navigator.of(dialogContext).pop(false),
                 child: Text(text.later),
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.of(dialogContext).pop();
+                  Navigator.of(dialogContext).pop(true);
                   onDownload();
                 },
                 child: Text(text.download),
@@ -165,7 +175,9 @@ class ShorebirdUpdatePrompter {
             ],
           );
         },
-      ),
+      ).then((choice) {
+        if (choice == null) onPromptDiscarded?.call();
+      }),
     );
   }
 

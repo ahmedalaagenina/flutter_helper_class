@@ -15,9 +15,10 @@ class ShorebirdUpdateConfig {
     this.mode = ShorebirdUpdateMode.silent,
     this.promptStyle = ShorebirdPromptStyle.banner,
     this.track = UpdateTrack.stable,
+    this.autoStart = true,
     this.checkOnStart = true,
     this.checkOnResume = true,
-    this.startDelay = const Duration(seconds: 2),
+    this.startDelay = const Duration(seconds: 5),
     this.minCheckInterval = const Duration(minutes: 30),
     this.maxRetries = 2,
     this.retryBackoff = const Duration(seconds: 5),
@@ -38,6 +39,14 @@ class ShorebirdUpdateConfig {
   /// Which Shorebird track to pull patches from (`stable`, `beta`, `staging`,
   /// or any custom track you patched to).
   final UpdateTrack track;
+
+  /// Whether the first check is scheduled automatically by `initialize`.
+  ///
+  /// Set to `false` in an app with a splash screen that replaces the route
+  /// stack when it finishes: a dialog shown over the splash is discarded by
+  /// that navigation. Call `ShorebirdUpdateManager.start()` once the app has
+  /// settled on its first real screen instead.
+  final bool autoStart;
 
   /// Check once shortly after `ShorebirdUpdateManager.initialize`.
   final bool checkOnStart;
@@ -104,6 +113,7 @@ class ShorebirdUpdateConfig {
       mode: mode ?? this.mode,
       promptStyle: promptStyle ?? this.promptStyle,
       track: track ?? this.track,
+      autoStart: autoStart,
       checkOnStart: checkOnStart,
       checkOnResume: checkOnResume,
       startDelay: startDelay,

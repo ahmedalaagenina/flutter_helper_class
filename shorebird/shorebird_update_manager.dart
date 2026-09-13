@@ -36,6 +36,10 @@ class ShorebirdUpdateManager {
   static Timer? _startTimer;
 
   static bool _initialized = false;
+
+  /// Whether [start] has run. Automatic checks stay parked until it has, so a
+  /// prompt is never raised over a splash screen that is about to navigate.
+  static bool _started = false;
   static bool _busy = false;
   static DateTime? _lastCheckedAt;
 
@@ -64,6 +68,7 @@ class ShorebirdUpdateManager {
         strings: _config.strings,
         stringsBuilder: _config.stringsBuilder,
         logger: _log,
+        onPromptDiscarded: () => _retryCheckSoon('discarded prompt'),
       );
 
   /// Wires up the manager. Idempotent: calling it twice is a no-op.
@@ -98,11 +103,26 @@ class ShorebirdUpdateManager {
       WidgetsBinding.instance.addObserver(_observer!);
     }
 
-    if (config.checkOnStart) {
-      _startTimer = Timer(config.startDelay, () {
+    if (config.checkOnStart && config.autoStart) start();
+  }
+
+  /// Schedules the first update check.
+  ///
+  /// Called for you by [initialize] unless
+  /// [ShorebirdUpdateConfig.autoStart] is `false`. Call it yourself once the
+  /// app is past its splash screen, so a prompt is not discarded by the
+  /// navigation that leaves the splash.
+  static void start() {
+    if (!isAvailable) return;
+    _started = true;
+    if (!_config.checkOnStart) return;
+    _startTimer?.cancel();
+    // Wait for the first frame so the navigator is mounted before prompting.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startTimer = Timer(_config.startDelay, () {
         unawaited(checkForUpdate());
       });
-    }
+    });
   }
 
   /// Switches track at runtime (e.g. an internal "join beta" toggle) and
@@ -139,6 +159,10 @@ class ShorebirdUpdateManager {
     ValueChanged<String>? onError,
   }) async {
     if (!isAvailable) return state.value;
+    // The resume observer fires as soon as the app launches, which is while
+    // a splash screen is still up. Parking automatic checks until start()
+    // keeps a prompt from being raised and then discarded by navigation.
+    if (!_started && !force) return state.value;
     if (_busy) return state.value;
 
     if (!force && _lastCheckedAt != null) {
@@ -164,14 +188,15 @@ class ShorebirdUpdateManager {
 
         case UpdateStatus.outdated:
           onUpdateAvailable?.call();
-          if (_config.mode == ShorebirdUpdateMode.askBeforeDownload) {
+          if (_config.mode.downloadsWithoutAsking) {
+            await _download();
+          } else {
             _emit(state.value.copyWith(phase: ShorebirdUpdatePhase.idle));
-            _ui.askToDownload(
+            final shown = _ui.askToDownload(
               style: _config.promptStyle,
               onDownload: () => unawaited(_download()),
             );
-          } else {
-            await _download();
+            if (!shown) _retryCheckSoon('download prompt');
           }
 
         case UpdateStatus.restartRequired:
@@ -227,6 +252,7 @@ class ShorebirdUpdateManager {
     _updater = null;
     _navigatorKey = null;
     _initialized = false;
+    _started = false;
     _busy = false;
     _lastCheckedAt = null;
     _announcedPatch = null;
@@ -243,7 +269,7 @@ class ShorebirdUpdateManager {
   /// the "update ready" prompt appears.
   static Future<void> _download() async {
     _emit(state.value.copyWith(phase: ShorebirdUpdatePhase.downloading));
-    if (_config.mode != ShorebirdUpdateMode.silent) _ui.showDownloading();
+    if (_config.mode.showsPrompts) _ui.showDownloading();
 
     final attempts = _config.maxRetries + 1;
     for (var attempt = 1; attempt <= attempts; attempt++) {
@@ -277,7 +303,7 @@ class ShorebirdUpdateManager {
           ),
         );
         _ui.hide();
-        if (_config.mode != ShorebirdUpdateMode.silent) {
+        if (_config.mode.showsPrompts) {
           _ui.showError(error.message);
         }
         return;
@@ -305,7 +331,7 @@ class ShorebirdUpdateManager {
     );
     _ui.hide();
 
-    if (_config.mode == ShorebirdUpdateMode.silent) {
+    if (!_config.mode.showsPrompts) {
       _log('Patch ${next?.number} staged; applies on next cold start.');
       return;
     }
@@ -314,10 +340,22 @@ class ShorebirdUpdateManager {
     if (next != null && _announcedPatch == next.number) return;
     _announcedPatch = next?.number;
 
-    _ui.showReady(
+    final shown = _ui.showReady(
       style: _config.promptStyle,
       onRestart: _config.onRestartRequested == null ? null : applyUpdate,
     );
+    // Allow a later attempt rather than leaving the user uninformed.
+    if (!shown) _announcedPatch = null;
+  }
+
+  /// Clears the throttle so the next check runs immediately.
+  ///
+  /// Used when a prompt could not be rendered: without this the update would
+  /// be dropped and, in [ShorebirdUpdateMode.askBeforeDownload], never
+  /// downloaded at all — a state no future patch could repair.
+  static void _retryCheckSoon(String what) {
+    _lastCheckedAt = null;
+    _log('No context to show the $what; will retry on the next check.');
   }
 
   static Future<void> _refreshPatchNumbers() async {
