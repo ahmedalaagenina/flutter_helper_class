@@ -81,6 +81,7 @@ class ShorebirdUpdateState {
   int get hashCode => Object.hash(phase, currentPatch, nextPatch, error);
 
   @override
-  String toString() => 'ShorebirdUpdateState(${phase.name}, '
+  String toString() =>
+      'ShorebirdUpdateState(${phase.name}, '
       'current: $currentPatch, next: $nextPatch, error: $error)';
 }

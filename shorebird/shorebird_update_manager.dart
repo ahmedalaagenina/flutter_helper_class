@@ -64,12 +64,12 @@ class ShorebirdUpdateManager {
   /// Built per call so runtime changes to strings or navigator key are picked
   /// up without re-initializing.
   static ShorebirdUpdatePrompter get _ui => ShorebirdUpdatePrompter(
-        navigatorKey: _navigatorKey,
-        strings: _config.strings,
-        stringsBuilder: _config.stringsBuilder,
-        logger: _log,
-        onPromptDiscarded: () => _retryCheckSoon('discarded prompt'),
-      );
+    navigatorKey: _navigatorKey,
+    strings: _config.strings,
+    stringsBuilder: _config.stringsBuilder,
+    logger: _log,
+    onPromptDiscarded: () => _retryCheckSoon('discarded prompt'),
+  );
 
   /// Wires up the manager. Idempotent: calling it twice is a no-op.
   ///
@@ -91,7 +91,8 @@ class ShorebirdUpdateManager {
     if (!isAvailable) {
       _log('Shorebird engine unavailable in this build; updates are disabled.');
       _emit(
-          const ShorebirdUpdateState(phase: ShorebirdUpdatePhase.unavailable));
+        const ShorebirdUpdateState(phase: ShorebirdUpdatePhase.unavailable),
+      );
       return;
     }
 
@@ -284,13 +285,16 @@ class ShorebirdUpdateManager {
           return;
         }
 
-        final canRetry = error.reason == UpdateFailureReason.downloadFailed ||
+        final canRetry =
+            error.reason == UpdateFailureReason.downloadFailed ||
             error.reason == UpdateFailureReason.unknown;
 
         if (canRetry && attempt < attempts) {
           final delay = _config.retryBackoff * attempt;
-          _log('Download attempt $attempt failed; retrying in '
-              '${delay.inSeconds}s (${error.reason.name}).');
+          _log(
+            'Download attempt $attempt failed; retrying in '
+            '${delay.inSeconds}s (${error.reason.name}).',
+          );
           await Future<void>.delayed(delay);
           continue;
         }
@@ -370,8 +374,10 @@ class ShorebirdUpdateManager {
             : state.value.phase,
       ),
     );
-    _log('Running patch ${current?.number ?? "none"}'
-        '${next != null ? ", patch ${next.number} pending" : ""}.');
+    _log(
+      'Running patch ${current?.number ?? "none"}'
+      '${next != null ? ", patch ${next.number} pending" : ""}.',
+    );
   }
 
   static Future<Patch?> _readPatch({required bool next}) async {

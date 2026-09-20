@@ -58,7 +58,7 @@ final class BlocPagingState<T> extends PagingStateBase<int, T> {
     error: null,
     hasNextPage: true,
     isLoading: false,
-    search: null,
+    search: search,
     generation: generation + 1,
   );
 

@@ -118,9 +118,7 @@ class ShorebirdUpdatePrompter {
     if (text == null) return;
     _showBanner(
       content: Text('${text.downloadFailed} $message'),
-      actions: [
-        TextButton(onPressed: hide, child: Text(text.dismiss)),
-      ],
+      actions: [TextButton(onPressed: hide, child: Text(text.dismiss))],
     );
   }
 
@@ -235,10 +233,7 @@ class ShorebirdUpdatePrompter {
     );
   }
 
-  void _showBanner({
-    required Widget content,
-    required List<Widget> actions,
-  }) {
+  void _showBanner({required Widget content, required List<Widget> actions}) {
     final messenger = _messenger;
     if (messenger == null) {
       _log('No ScaffoldMessenger available; skipping banner.');
@@ -246,9 +241,7 @@ class ShorebirdUpdatePrompter {
     }
     messenger
       ..hideCurrentMaterialBanner()
-      ..showMaterialBanner(
-        MaterialBanner(content: content, actions: actions),
-      );
+      ..showMaterialBanner(MaterialBanner(content: content, actions: actions));
   }
 
   void _log(String message) => logger?.call(message);

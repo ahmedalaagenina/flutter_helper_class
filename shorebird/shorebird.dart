@@ -3,7 +3,7 @@
 /// Single import for the whole module:
 ///
 /// ```dart
-/// import 'package:sanad_rewards/utils/helpers/shorebird/shorebird.dart';
+/// import 'package:<your_app>/.../shorebird/shorebird.dart';
 /// ```
 ///
 /// See `README.md` in this folder for setup and usage.
