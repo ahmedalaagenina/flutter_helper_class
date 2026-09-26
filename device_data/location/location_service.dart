@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:dio/dio.dart';
@@ -5,75 +6,137 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:idara_esign/config/routes/app_router.dart';
+import 'package:idara_esign/generated/l10n.dart';
+
+/// Where a position came from. GPS is the device's own fix; IP is a
+/// city-level guess from the public IP, and can be a whole country off
+/// behind a VPN or a carrier gateway.
+enum LocationSource { gps, ip }
+
+typedef SourcedPosition = ({Position position, LocationSource source});
 
 class LocationService {
+  static const _quickOpTimeout = Duration(seconds: 10);
+  static const _permissionRequestTimeout = Duration(seconds: 60);
+  static const _settingsReturnTimeout = Duration(minutes: 2);
+
   Future<bool> checkPermissions({bool requestIfNeeded = false}) async {
     bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      // Location services are off on the device (GPS toggle off).
-      if (requestIfNeeded && !kIsWeb) {
-        _showEnableLocationServiceDialog();
-      }
+    try {
+      serviceEnabled = await Geolocator.isLocationServiceEnabled().timeout(
+        _quickOpTimeout,
+      );
+    } catch (_) {
       return false;
     }
 
-    permission = await Geolocator.checkPermission();
+    if (!serviceEnabled) {
+      if (!requestIfNeeded || kIsWeb) return false;
+      final wantsToEnable = await _showEnableLocationServiceDialog();
+      if (wantsToEnable != true) return false;
+
+      await _openLocationSettingsAndWait();
+
+      try {
+        serviceEnabled = await Geolocator.isLocationServiceEnabled().timeout(
+          _quickOpTimeout,
+        );
+      } catch (_) {
+        return false;
+      }
+      if (!serviceEnabled) return false;
+    }
+
+    LocationPermission permission;
+    try {
+      permission = await Geolocator.checkPermission().timeout(_quickOpTimeout);
+    } catch (_) {
+      return false;
+    }
 
     if (permission == LocationPermission.denied) {
-      if (requestIfNeeded) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          return false;
-        }
-      } else {
+      if (!requestIfNeeded) return false;
+      try {
+        permission = await Geolocator.requestPermission().timeout(
+          _permissionRequestTimeout,
+        );
+      } catch (_) {
         return false;
       }
     }
 
-    if (permission == LocationPermission.deniedForever) {
-      if (requestIfNeeded && !kIsWeb) {
-        // App settings can only be seamlessly opened on mobile platforms.
-        _showPermissionDialog();
-      }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       return false;
     }
 
     return true;
   }
 
-  // Method to gracefully get current location
-  Future<Position?> getCurrentLocation({bool requestIfNeeded = false}) async {
+  Future<void> _openLocationSettingsAndWait() async {
+    final resumed = Completer<void>();
+    final listener = AppLifecycleListener(
+      onResume: () {
+        if (!resumed.isCompleted) resumed.complete();
+      },
+    );
     try {
-      bool havePermission = await checkPermissions(requestIfNeeded: requestIfNeeded);
-
-      if (!havePermission) return await _getIpFallbackLocation();
-
-      // Attempt generic accuracy to prevent timeout timeouts commonly thrown on Web/Simulators.
-      // Forcefully limit to 4 seconds to catch infinite Android Emulator location hangs.
-      final position = await Geolocator.getCurrentPosition().timeout(
-        const Duration(seconds: 4),
-      );
-      return position;
-    } catch (e) {
-      // Hardware fails to triangulate location (Web/Simulators). Fall back to IP Tracking.
-      return await _getIpFallbackLocation();
+      final opened = await Geolocator.openLocationSettings();
+      if (opened) {
+        await resumed.future.timeout(_settingsReturnTimeout, onTimeout: () {});
+      }
+    } catch (_) {
+      // Ignore — the caller re-checks the service state either way.
+    } finally {
+      listener.dispose();
     }
+  }
+
+  // Method to gracefully get current location
+  Future<SourcedPosition?> getCurrentLocation({
+    bool requestIfNeeded = false,
+  }) async {
+    try {
+      bool havePermission = await checkPermissions(
+        requestIfNeeded: requestIfNeeded,
+      );
+
+      if (!havePermission) return await _ipFallback();
+
+      final position = await Geolocator.getCurrentPosition().timeout(
+        const Duration(seconds: 5),
+      );
+      return (position: position, source: LocationSource.gps);
+    } catch (e) {
+      return await _ipFallback();
+    }
+  }
+
+  Future<SourcedPosition?> _ipFallback() async {
+    final position = await _getIpFallbackLocation();
+    if (position == null) return null;
+    return (position: position, source: LocationSource.ip);
   }
 
   // Fetch approximate GPS coordinates via Public IP Triangulation as a fallback
   Future<Position?> _getIpFallbackLocation() async {
-    final dio = Dio();
-    
+    // Bounded so a stalled network can't hang the (awaited) login flow.
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
+      ),
+    );
+
     // Attempt 1: GeoJS (highly reliable, HTTPS-only, full CORS support for Web)
     try {
       final response = await dio.get('https://get.geojs.io/v1/ip/geo.json');
       final data = response.data;
       if (data != null) {
         final double? lat = double.tryParse(data['latitude']?.toString() ?? '');
-        final double? lon = double.tryParse(data['longitude']?.toString() ?? '');
+        final double? lon = double.tryParse(
+          data['longitude']?.toString() ?? '',
+        );
         if (lat != null && lon != null) {
           final position = Position(
             latitude: lat,
@@ -87,7 +150,6 @@ class LocationService {
             altitudeAccuracy: 0.0,
             headingAccuracy: 0.0,
           );
-          log('IP Fallback Location (GeoJS): $position');
           return position;
         }
       }
@@ -100,8 +162,12 @@ class LocationService {
       final response = await dio.get('https://freeipapi.com/api/json');
       final data = response.data;
       if (data != null) {
-        final double? lat = double.tryParse(data['latitude']?.toString() ?? '') ?? (data['latitude'] ?? data['lat'])?.toDouble();
-        final double? lon = double.tryParse(data['longitude']?.toString() ?? '') ?? (data['longitude'] ?? data['lon'])?.toDouble();
+        final double? lat =
+            double.tryParse(data['latitude']?.toString() ?? '') ??
+            (data['latitude'] ?? data['lat'])?.toDouble();
+        final double? lon =
+            double.tryParse(data['longitude']?.toString() ?? '') ??
+            (data['longitude'] ?? data['lon'])?.toDouble();
         if (lat != null && lon != null) {
           final position = Position(
             latitude: lat,
@@ -127,62 +193,54 @@ class LocationService {
   }
 
   // Show permission dialog for Mobile
-  void _showPermissionDialog() {
+  void showPermissionDialog() {
     if (rootNavigatorKey.currentContext == null) return;
 
     showDialog(
       context: rootNavigatorKey.currentContext!,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Location Permission Needed'),
-          content: const Text(
-            'This app requires location permissions to function. Please grant the setting in your device settings.',
-          ),
+          title: Text(S.of(context).locationPermissionNeeded),
+          content: Text(S.of(context).locationPermissionNeededMessage),
           actions: [
             TextButton(
-              child: const Text('Cancel'),
+              child: Text(S.of(context).cancel),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
-            TextButton(
-              child: const Text('Open Settings'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                Geolocator.openAppSettings();
-              },
-            ),
+            if (!kIsWeb)
+              TextButton(
+                child: Text(S.of(context).openSettings),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Geolocator.openAppSettings();
+                },
+              ),
           ],
         );
       },
     );
   }
 
-  // Show dialog to enable location service (GPS toggle)
-  void _showEnableLocationServiceDialog() {
-    if (rootNavigatorKey.currentContext == null) return;
+  Future<bool?> _showEnableLocationServiceDialog() {
+    final context = rootNavigatorKey.currentContext;
+    if (context == null) return Future.value(false);
 
-    showDialog(
-      context: rootNavigatorKey.currentContext!,
-      builder: (BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Location Services Disabled'),
-          content: const Text(
-            'Location services are currently disabled. Please enable them in your device settings to continue.',
-          ),
+          title: Text(S.of(dialogContext).locationServicesDisabled),
+          content: Text(S.of(dialogContext).locationServicesDisabledMessage),
           actions: [
             TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              child: Text(S.of(dialogContext).cancel),
+              onPressed: () => Navigator.of(dialogContext).pop(false),
             ),
             TextButton(
-              child: const Text('Enable Location'),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await Geolocator.openLocationSettings();
-              },
+              child: Text(S.of(dialogContext).enableLocation),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
             ),
           ],
         );

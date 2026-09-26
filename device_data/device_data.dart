@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:idara_esign/core/services/device_info/device_info_service.dart';
 import 'package:idara_esign/core/services/ip/ip_info_service.dart';
 import 'package:idara_esign/core/services/location/location_service.dart';
@@ -14,6 +15,7 @@ import 'package:idara_esign/core/utils/extensions.dart';
 class DeviceInfoModel {
   final String? deviceId;
   final String? macAddress;
+  final String? deviceOSType;
   final String? deviceType;
   final String? deviceModel;
   final String? deviceName;
@@ -24,6 +26,8 @@ class DeviceInfoModel {
   final String? timezone;
   final String? latitude;
   final String? longitude;
+  final String? locationSource;
+  final String? locationAccuracy;
   final String? locale;
   final String? screenResolution;
   final String? networkType;
@@ -34,6 +38,7 @@ class DeviceInfoModel {
     this.deviceId,
     this.macAddress,
     this.deviceType,
+    this.deviceOSType,
     this.deviceModel,
     this.deviceName,
     this.company,
@@ -43,6 +48,8 @@ class DeviceInfoModel {
     this.timezone,
     this.latitude,
     this.longitude,
+    this.locationSource,
+    this.locationAccuracy,
     this.locale,
     this.screenResolution,
     this.networkType,
@@ -76,6 +83,10 @@ class DeviceInfoModel {
       if (timezone != null && timezone!.isNotEmpty) 'X-Timezone': timezone!,
       if (latitude != null && latitude!.isNotEmpty) 'X-Latitude': latitude!,
       if (longitude != null && longitude!.isNotEmpty) 'X-Longitude': longitude!,
+      if (locationSource != null && locationSource!.isNotEmpty)
+        'X-Location-Source': locationSource!,
+      if (locationAccuracy != null && locationAccuracy!.isNotEmpty)
+        'X-Location-Accuracy': locationAccuracy!,
       if (screenResolution != null && screenResolution!.isNotEmpty)
         'X-Screen-Resolution': screenResolution!,
       if (networkType != null && networkType!.isNotEmpty)
@@ -89,23 +100,25 @@ class DeviceInfoModel {
 
   Map<String, dynamic> toJson() {
     return {
-      "device_id": deviceId,
-      "mac_address": macAddress,
-      "device_type": deviceType,
-      "device_model": deviceModel,
-      "device_name": deviceName,
-      "company": company,
-      "app_version": appVersion,
-      "os_version": osVersion,
-      "browser_version": browserVersion,
-      "timezone": timezone,
-      "latitude": latitude,
-      "longitude": longitude,
-      "locale": locale,
-      "screen_resolution": screenResolution,
-      "network_type": networkType,
-      "referer": referer,
-      "ip_address": ipAddress,
+      'device_id': deviceId,
+      'mac_address': macAddress,
+      'device_type': deviceType,
+      'device_model': deviceModel,
+      'device_name': deviceName,
+      'company': company,
+      'app_version': appVersion,
+      'os_version': osVersion,
+      'browser_version': browserVersion,
+      'timezone': timezone,
+      'latitude': latitude,
+      'longitude': longitude,
+      'location_source': locationSource,
+      'location_accuracy': locationAccuracy,
+      'locale': locale,
+      'screen_resolution': screenResolution,
+      'network_type': networkType,
+      'referer': referer,
+      'ip_address': ipAddress,
     };
   }
 
@@ -141,6 +154,36 @@ class DeviceData {
 
   DeviceInfoModel? get cachedInfo => _cachedInfo;
 
+  /// Whether location permission was granted when [_cachedInfo] was built, so
+  /// a later grant/revoke (made in Settings, outside the app) can be spotted.
+  bool? _cachedWithLocation;
+  AppLifecycleListener? _permissionWatcher;
+  bool _isRefreshingForPermission = false;
+
+  /// Re-collects on every resume where the location permission differs from
+  /// the one the cache was built with. Without it the headers keep the IP
+  /// estimate until the next login even after the user grants access.
+  /// The check is cheap (no GPS, no network); collection only runs on change.
+  void watchLocationPermission() {
+    _permissionWatcher ??= AppLifecycleListener(
+      onResume: _refreshIfPermissionChanged,
+    );
+  }
+
+  Future<void> _refreshIfPermissionChanged() async {
+    if (_cachedInfo == null || _isRefreshingForPermission) return;
+    _isRefreshingForPermission = true;
+    try {
+      final granted = await _locationService.checkPermissions();
+      if (granted == _cachedWithLocation) return;
+      await collectDeviceInfo(forceRefresh: true);
+    } catch (e) {
+      AppLog.e('Failed to refresh device info after permission change: $e');
+    } finally {
+      _isRefreshingForPermission = false;
+    }
+  }
+
   Future<DeviceInfoModel> collectDeviceInfo({
     bool forceRefresh = false,
     bool requestLocationPermission = false,
@@ -151,6 +194,7 @@ class DeviceData {
 
     try {
       final deviceInfo = await _deviceInfoService.getDeviceInfo();
+      final String osType = _resolveDeviceType();
 
       String? deviceId;
       try {
@@ -159,7 +203,7 @@ class DeviceData {
         AppLog.e('Failed to get device serial: $e');
       }
 
-      String? macAddress = 'unknown'; // Defaults to unknown
+      final String macAddress = 'unknown'; // Defaults to unknown
       String? deviceType;
       String? deviceModel;
       String? deviceName;
@@ -224,16 +268,24 @@ class DeviceData {
 
       String? latitude = '0.0';
       String? longitude = '0.0';
+      String locationSource = 'none';
+      String? locationAccuracy;
+      bool withLocation = false;
       try {
         // LocationService internally timeouts hardware GPS hangs to execute IP Fallback.
-        final position = await _locationService.getCurrentLocation(
+        final located = await _locationService.getCurrentLocation(
           requestIfNeeded: requestLocationPermission,
         );
 
-        if (position != null) {
-          latitude = position.latitude.toString();
-          longitude = position.longitude.toString();
+        if (located != null) {
+          latitude = located.position.latitude.toString();
+          longitude = located.position.longitude.toString();
+          locationSource = located.source.name;
+          if (located.source == LocationSource.gps) {
+            locationAccuracy = located.position.accuracy.round().toString();
+          }
         }
+        withLocation = await _locationService.checkPermissions();
       } catch (e) {
         AppLog.e('Failed to get location via service: $e');
       }
@@ -252,6 +304,7 @@ class DeviceData {
         deviceId: deviceId,
         macAddress: macAddress,
         deviceType: deviceType,
+        deviceOSType: osType,
         deviceModel: deviceModel,
         deviceName: deviceName,
         company: company,
@@ -261,12 +314,15 @@ class DeviceData {
         timezone: timezone,
         latitude: latitude,
         longitude: longitude,
+        locationSource: locationSource,
+        locationAccuracy: locationAccuracy,
         locale: locale,
         screenResolution: screenResolution,
         networkType: networkType,
         referer: kIsWeb ? Uri.base.host : 'app',
         ipAddress: ipAddress,
       );
+      _cachedWithLocation = withLocation;
 
       return _cachedInfo!;
     } catch (e) {
@@ -274,6 +330,24 @@ class DeviceData {
         'Critical error collecting device info via modular services: $e',
       );
       return const DeviceInfoModel();
+    }
+  }
+
+  String _resolveDeviceType() {
+    if (kIsWeb) return 'web';
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return 'android';
+      case TargetPlatform.iOS:
+        return 'ios';
+      case TargetPlatform.macOS:
+        return 'macos';
+      case TargetPlatform.windows:
+        return 'windows';
+      case TargetPlatform.linux:
+        return 'linux';
+      case TargetPlatform.fuchsia:
+        return 'fuchsia';
     }
   }
 }
