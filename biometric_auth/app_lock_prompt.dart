@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:idara_esign/core/biometric_auth/biometric_icon.dart';
 import 'package:idara_esign/core/biometric_auth/service/biometric_auth.dart';
 import 'package:idara_esign/core/constants/storage_keys.dart';
 import 'package:idara_esign/core/widgets/app_snack_bars.dart';
@@ -121,11 +122,7 @@ class _AppLockPromptDialogState extends State<_AppLockPromptDialog> {
                   ],
                 ),
               ),
-              child: Icon(
-                Icons.fingerprint_rounded,
-                size: 46,
-                color: colors.primary,
-              ),
+              child: BiometricIcon(size: 46, color: colors.primary),
             ),
             const SizedBox(height: 24),
             Text(
@@ -164,7 +161,7 @@ class _AppLockPromptDialogState extends State<_AppLockPromptDialog> {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.fingerprint_rounded, size: 20),
+                    : const BiometricIcon(size: 20),
                 label: Text(
                   S.of(context).appLockPromptConfirm,
                   style: const TextStyle(fontWeight: FontWeight.w600),

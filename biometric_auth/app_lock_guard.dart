@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:idara_esign/core/biometric_auth/biometric_icon.dart';
 import 'package:idara_esign/core/biometric_auth/service/biometric_auth.dart';
 import 'package:idara_esign/core/constants/storage_keys.dart';
 import 'package:idara_esign/di/injection_container.dart';
@@ -345,7 +346,7 @@ class _LockOverlay extends StatelessWidget {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Icon(Icons.fingerprint_rounded),
+                            : const BiometricIcon(),
                         label: Text(S.of(context).unlockApp),
                       ),
                     ],

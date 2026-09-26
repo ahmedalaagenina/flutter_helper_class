@@ -1,5 +1,9 @@
 import 'biometric_auth_result.dart';
 
+/// The biometric a device prompts with — this package's own type, so callers
+/// never see `local_auth`'s `BiometricType`.
+enum BiometricKind { face, fingerprint, generic }
+
 /// Platform-agnostic local authentication (biometrics + device credential).
 ///
 /// This abstraction never leaks platform plugin types, so it can be dropped
@@ -19,6 +23,13 @@ abstract interface class BiometricAuthService {
   /// Use this to decide whether to show a "Face ID / fingerprint" affordance.
   /// Never throws — returns `false` on error.
   Future<bool> hasEnrolledBiometrics();
+
+  /// Which biometric this device prompts with, so the UI can draw the matching
+  /// glyph (a face on Face ID iPhones, a fingerprint elsewhere).
+  ///
+  /// [BiometricKind.generic] when it cannot be told — nothing enrolled, both
+  /// kinds present, Android's strong/weak classes, or the web. Never throws.
+  Future<BiometricKind> biometricKind();
 
   /// Prompts the user to authenticate and resolves to a typed
   /// [BiometricAuthResult]. Never throws — all failures map to a result case.

@@ -23,7 +23,11 @@ import 'package:idara_esign/generated/l10n.dart';
 class BiometricSignGate {
   const BiometricSignGate._();
 
-  static Future<bool> confirm(BuildContext context, {String? reason}) async {
+  static Future<bool> confirm(
+    BuildContext context, {
+    String? reason,
+    bool showWarning = true,
+  }) async {
     final service = getIt<BiometricAuthService>();
     final result = await service.authenticate(
       localizedReason: reason ?? S.of(context).biometricSignReason,
@@ -37,10 +41,12 @@ class BiometricSignGate {
         return true;
       case BiometricAuthCanceled():
       case BiometricAuthFailed():
-        AppSnackBars.warning(
-          S.of(context).biometricRequiredToContinue,
-          context: context,
-        );
+        if (showWarning) {
+          AppSnackBars.warning(
+            S.of(context).biometricRequiredToContinue,
+            context: context,
+          );
+        }
         return false;
       case BiometricAuthLockedOut():
         AppSnackBars.error(S.of(context).biometricLockedOut, context: context);

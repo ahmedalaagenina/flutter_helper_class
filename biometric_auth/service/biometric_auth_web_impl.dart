@@ -4,10 +4,9 @@ import 'dart:js_interop_unsafe';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:idara_esign/core/biometric_auth/service/biometric_auth_result.dart';
+import 'package:idara_esign/core/biometric_auth/service/biometric_auth_service.dart';
 import 'package:web/web.dart' as web;
-
-import 'biometric_auth_result.dart';
-import 'biometric_auth_service.dart';
 
 /// Returns the [BiometricAuthService] for the web platform. Selected
 /// automatically by `biometric_auth_factory.dart` via conditional import — do
@@ -58,8 +57,8 @@ class BiometricAuthWebImpl implements BiometricAuthService {
     try {
       // `window.PublicKeyCredential` is undefined on browsers without WebAuthn.
       if (!_hasWebAuthn()) return false;
-      return await web.PublicKeyCredential
-          .isUserVerifyingPlatformAuthenticatorAvailable()
+      return await web
+              .PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
           .toDart
           .then((value) => value.toDart);
     } catch (_) {
@@ -72,6 +71,10 @@ class BiometricAuthWebImpl implements BiometricAuthService {
   /// available signal.
   @override
   Future<bool> hasEnrolledBiometrics() => isSupported();
+
+  /// WebAuthn never says which authenticator the OS will use.
+  @override
+  Future<BiometricKind> biometricKind() async => BiometricKind.generic;
 
   @override
   Future<BiometricAuthResult> authenticate({

@@ -36,6 +36,20 @@ class BiometricAuthServiceImpl implements BiometricAuthService {
   }
 
   @override
+  Future<BiometricKind> biometricKind() async {
+    try {
+      final biometrics = await _auth.getAvailableBiometrics();
+      final face = biometrics.contains(BiometricType.face);
+      final fingerprint = biometrics.contains(BiometricType.fingerprint);
+      if (face && !fingerprint) return BiometricKind.face;
+      if (fingerprint && !face) return BiometricKind.fingerprint;
+      return BiometricKind.generic;
+    } catch (_) {
+      return BiometricKind.generic;
+    }
+  }
+
+  @override
   Future<BiometricAuthResult> authenticate({
     required String localizedReason,
     bool biometricOnly = false,

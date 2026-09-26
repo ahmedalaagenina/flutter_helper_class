@@ -28,6 +28,7 @@ class _AppLockWidgetState extends State<AppLockWidget> {
     final isSupported = await authService.isSupported();
     final hasEnrolledBiometrics = await authService.hasEnrolledBiometrics();
     final prefs = getIt<SharedPreferences>();
+    if (!mounted) return;
     setState(() {
       _isSupported = isSupported && hasEnrolledBiometrics;
       _useBiometricAuth = prefs.getBool(StorageKeys.useBiometricAuth) ?? false;
@@ -44,6 +45,7 @@ class _AppLockWidgetState extends State<AppLockWidget> {
     }
     final prefs = getIt<SharedPreferences>();
     await prefs.setBool(StorageKeys.useBiometricAuth, value);
+    if (!mounted) return;
     setState(() {
       _useBiometricAuth = value;
     });
