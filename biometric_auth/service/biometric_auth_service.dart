@@ -1,4 +1,4 @@
-import 'biometric_auth_result.dart';
+import 'package:idara_esign/core/biometric_auth/service/biometric_auth_result.dart';
 
 /// The biometric a device prompts with — this package's own type, so callers
 /// never see `local_auth`'s `BiometricType`.

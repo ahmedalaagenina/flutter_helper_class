@@ -255,7 +255,14 @@ class _AppLockGuardState extends State<AppLockGuard>
     return Stack(
       fit: StackFit.expand,
       children: [
-        widget.child,
+        // The overlay only stops pointers; semantic actions (a VoiceOver
+        // double-tap) go straight to their node, so the app underneath must
+        // leave the semantics tree while locked. Always wrapped, so the tree
+        // shape stays stable (see above).
+        ExcludeSemantics(
+          excluding: _status != _LockStatus.unlocked,
+          child: widget.child,
+        ),
         if (_status != _LockStatus.unlocked)
           _LockOverlay(
             busy: _status == _LockStatus.authenticating,
