@@ -26,25 +26,53 @@ class WebNotificationService {
   static FirebaseMessaging get _messaging => FirebaseMessaging.instance;
 
   static bool _initialized = false;
+  static bool _setUp = false;
 
+  /// Reads the permission and finishes setup only if it is already granted.
+  ///
+  /// It never *requests* it: a browser prompt that opens with no click behind
+  /// it is what Chrome files under spam (quiet UI, then auto-block for the
+  /// site). The request goes through [requestAndSetUp], called from a user
+  /// tap — the dashboard's invitation dialog or the settings banner.
   static Future<void> init() async {
     if (!kIsWeb || _initialized) return;
     _initialized = true;
 
-    // 1. Permission. On web this also satisfies the browser-level
-    //    Notification permission used by `showNotification`.
+    final settings = await _messaging.getNotificationSettings();
+    debugPrint(
+      '[WebNotificationService] permission: ${settings.authorizationStatus}',
+    );
+    if (_isGranted(settings.authorizationStatus)) await _completeSetUp();
+  }
+
+  /// Whether the browser has neither granted nor blocked notifications yet —
+  /// the only state in which asking can still change anything.
+  static Future<bool> isUndecided() async {
+    if (!kIsWeb) return false;
+    final settings = await _messaging.getNotificationSettings();
+    return settings.authorizationStatus == AuthorizationStatus.notDetermined;
+  }
+
+  /// Opens the browser prompt. Call only from a user gesture.
+  static Future<AuthorizationStatus> requestAndSetUp() async {
     final settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
-    debugPrint(
-      '[WebNotificationService] permission: ${settings.authorizationStatus}',
-    );
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      AppLog.e('[WebNotificationService] permission denied — aborting setup');
-      return;
-    }
+    final status = settings.authorizationStatus;
+    debugPrint('[WebNotificationService] requested: $status');
+    if (_isGranted(status)) await _completeSetUp();
+    return status;
+  }
+
+  static bool _isGranted(AuthorizationStatus status) =>
+      status == AuthorizationStatus.authorized ||
+      status == AuthorizationStatus.provisional;
+
+  static Future<void> _completeSetUp() async {
+    if (_setUp) return;
+    _setUp = true;
 
     // 2. Token + refresh. The token can rotate (browser data clear, long
     //    inactivity); the refresh stream lets us keep the backend in sync.
@@ -55,7 +83,6 @@ class WebNotificationService {
     }
     _messaging.onTokenRefresh.listen((newToken) {
       debugPrint('[WebNotificationService] token refresh: $newToken');
-      // TODO: persist `newToken` to the backend.
       NotificationApi.registerDeviceToken(newToken);
     });
 
@@ -127,16 +154,9 @@ class WebNotificationService {
     _navigateFromNotification(data);
   }
 
-  /// Default destination on tap. Extend by reading `data['click_action']`
-  /// once notification types are formalized.
+  /// Default destination on tap. Routes based on `document_id` /
+  /// `transaction_id` keys in the notification payload.
   static void _navigateFromNotification(Map<String, dynamic> data) {
-    // final context = rootNavigatorKey.currentContext;
-    // if (context == null) {
-    //   debugPrint('[WebNotificationService] no navigator context — skipping');
-    //   return;
-    // }
-    // context.go(Routes.userDocuments);
-
-    NotificationNavigator.handle(Map<String, dynamic>.from(map));
+    NotificationNavigator.handle(data);
   }
 }

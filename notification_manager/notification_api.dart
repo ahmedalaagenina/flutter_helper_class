@@ -188,6 +188,12 @@ class NotificationApi {
     );
   }
 
+  /// The current permission, without prompting. Use this to decide what to
+  /// show; [requestPermission] opens the system/browser prompt and belongs
+  /// behind a user tap — browsers treat an unprompted request as spam.
+  static Future<NotificationSettings> getPermissionSettings() =>
+      messaging.getNotificationSettings();
+
   /// Prompts, if the OS has not already asked, and reports what it decided.
   ///
   /// Private: [ensurePermission] is the way in. Two public methods that both

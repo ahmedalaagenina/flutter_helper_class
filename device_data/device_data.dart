@@ -94,7 +94,11 @@ class DeviceInfoModel {
       // if (locale != null && locale!.isNotEmpty) 'Accept-Language': locale!,
       if (ipAddress != null && ipAddress!.isNotEmpty)
         'X-IP-Address': ipAddress!,
-      if (referer != null && referer!.isNotEmpty) 'referer': referer!,
+      // Browsers forbid scripts from setting Referer (it is on the Fetch
+      // spec's forbidden-header list) and send the real one themselves, so on
+      // web this only produced a console error per request and never arrived.
+      if (!kIsWeb && referer != null && referer!.isNotEmpty)
+        'referer': referer!,
     };
   }
 

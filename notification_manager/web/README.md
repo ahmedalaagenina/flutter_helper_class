@@ -75,7 +75,9 @@ relocate the SW.
 
 ### 4. Test
 1. `flutter run -d chrome`
-2. Accept the browser permission prompt.
+2. On the dashboard, press **Turn on notifications** in the invitation
+   dialog, then accept the browser prompt. (It never opens by itself — see
+   below.)
 3. Copy the FCM token from the console:
    `[WebNotificationService] FCM token: …`
 4. Send a test push from Firebase Console → **Cloud Messaging**, targeting the token.
@@ -136,11 +138,22 @@ development).
 
 ### `web_notification_service.dart`
 
-The orchestrator. `init()` does five things, in order:
+The orchestrator. **Permission is never requested on load**: a browser prompt
+with no click behind it is what Chrome treats as spam (quiet UI, then an
+auto-block for the whole site).
+
+- `init()` only *reads* the permission (`getNotificationSettings`). If it is
+  already granted it runs the setup below; otherwise it stops.
+- `requestAndSetUp()` opens the browser prompt and, if granted, runs the same
+  setup. Call it only from a user gesture — the dashboard's
+  `WebNotificationPermissionPrompt` dialog, or the settings banner.
+- `isUndecided()` tells the prompt whether asking can still change anything.
+
+The setup (`_completeSetUp`, run once) does, in order:
 
 | # | Step | Notes |
 |---|---|---|
-| 1 | `requestPermission` | On web this also grants browser-level Notification permission. |
+| 1 | permission | Already granted by the time setup runs (see above). |
 | 2 | `getToken(vapidKey: ...)` + `onTokenRefresh` listener | Tokens rotate (browser data clear, long inactivity) — the refresh stream keeps the backend in sync. |
 | 3 | `onMessage` + `onMessageOpenedApp` listeners | Foreground messages go to `_handleForegroundMessage`; `onMessageOpenedApp` is a no-op on web today but kept for native-API parity. |
 | 4 | `listenForNotificationClicks` | Subscribes to the SW's postMessage bridge. SW-dispatched notifications **don't** fire FCM's `onMessageOpenedApp`. |
@@ -150,8 +163,14 @@ Two safety nets:
 
 - **`_initialized` guard** — `init()` is idempotent; calling it again from a
   re-mount is a no-op.
-- **Permission gating** — if the user denies, we log and bail out instead of
-  setting up listeners that will never fire.
+- **Permission gating** — setup only runs once permission is granted, so no
+  listeners are wired for a browser that will never deliver.
+
+### `web_notification_permission_prompt.dart`
+
+The dashboard's invitation dialog. Shown only while the browser is undecided,
+at most once per app session; its **Turn on notifications** button is the user
+gesture that calls `requestAndSetUp()`.
 
 The fallback navigation `_navigateFromNotification` always goes to
 `Routes.userDocuments`. Extend it by inspecting `data['click_action']` once
