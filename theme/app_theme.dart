@@ -69,6 +69,7 @@ class AppTheme {
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
         elevation: elevation,
+        systemOverlayStyle: appSystemUiStyle(isDark: isDark),
         scrolledUnderElevation: 0, // to prevent changing color when scrolling
         titleTextStyle: typography.headlineSmall.copyWith(
           color: colors.onSurface,

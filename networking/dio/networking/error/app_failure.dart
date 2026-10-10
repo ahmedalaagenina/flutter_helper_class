@@ -11,11 +11,12 @@ sealed class AppFailure {
 }
 
 class NetworkFailure extends AppFailure {
-  const NetworkFailure([
-    super.message = 'No internet connection',
-    super.code,
-    super.data,
-  ]);
+  const NetworkFailure([this._message, int? code, Map<String, dynamic>? data])
+    : super('', code, data);
+
+  final String? _message;
+  @override
+  String get message => _message ?? S.current.noInternetConnection;
 }
 
 class ServerFailure extends AppFailure {
@@ -42,7 +43,8 @@ class OfflineQueuedFailure extends AppFailure {
   final String? syncId;
   const OfflineQueuedFailure({
     this.syncId,
-    String message = 'You are offline. Request queued and will sync automatically.',
+    String message =
+        'You are offline. Request queued and will sync automatically.',
     int? code,
     Map<String, dynamic>? data,
   }) : super(message, code, data);
